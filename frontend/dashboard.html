@@ -525,202 +525,244 @@ function largeGaugeSVG(score, color) {
 }
 
 // ===== RENDER CALL CARDS =====
+let gridBuilt = false;
 function renderGrid() {
   const grid = document.getElementById('grid');
-  grid.innerHTML = '';
-  PATIENTS.forEach((p, i) => {
+  if (!gridBuilt) {
+    // Initial full build with animations
+    grid.innerHTML = '';
+    PATIENTS.forEach((p, i) => {
+      const card = document.createElement('div');
+      card.id = 'card-' + p.id;
+      card.className = 'call-card';
+      card.style.animationDelay = (i*0.08)+'s';
+      card.onclick = () => selectCall(p.id);
+      card.innerHTML = `
+        <div class="cc-top">
+          <div class="cc-avatar" style="background:${p.triageColor}">${p.initials}</div>
+          <div class="cc-info">
+            <div class="cc-name">${p.name}</div>
+            <div class="cc-demo">${p.age}${p.sex} | ${p.healthCard}</div>
+          </div>
+          <span class="cc-badge" id="badge-${p.id}"></span>
+        </div>
+        <div class="cc-complaint">${p.complaint}</div>
+        <div class="cc-bottom">
+          <span class="cc-gauge" id="gauge-${p.id}"></span>
+          <span class="cc-timer" id="timer-${p.id}">--:--</span>
+          <span class="cc-triage" style="background:${p.triageColor}">${p.triageLevel}</span>
+        </div>`;
+      grid.appendChild(card);
+    });
+    gridBuilt = true;
+  }
+  // In-place updates only (no DOM rebuild, no animation restart)
+  PATIENTS.forEach(p => {
     const cs = callStates[p.id];
     const sb = getStatusBadge(cs.status);
     const isActive = ['connected','verifying','assessing'].includes(cs.status);
-    const progress = cs.transcriptIndex / p.conversation.length;
     const displayScore = Math.round(p.triageScore * cs.triageProgress);
-    const card = document.createElement('div');
-    card.className = `call-card${isActive?' active':''}${selectedCallId===p.id?' selected':''}`;
-    card.style.animationDelay = (i*0.08)+'s';
-    card.onclick = () => selectCall(p.id);
-    card.innerHTML = `
-      <div class="cc-top">
-        <div class="cc-avatar" style="background:${p.triageColor}">${p.initials}</div>
-        <div class="cc-info">
-          <div class="cc-name">${p.name}</div>
-          <div class="cc-demo">${p.age}${p.sex} | ${p.healthCard}</div>
-        </div>
-        <span class="cc-badge" style="background:${sb.bg};color:${sb.color}">${sb.emoji} ${sb.label}</span>
-      </div>
-      <div class="cc-complaint">${p.complaint}</div>
-      <div class="cc-bottom">
-        ${miniGaugeSVG(displayScore, p.triageColor)}
-        <span class="cc-timer">${cs.started ? formatDuration(cs.duration) : '--:--'}</span>
-        <span class="cc-triage" style="background:${p.triageColor}">${p.triageLevel}</span>
-      </div>`;
-    grid.appendChild(card);
+    const card = document.getElementById('card-' + p.id);
+    if (!card) return;
+    // Update classes without triggering animation restart
+    const wantActive = isActive ? ' active' : '';
+    const wantSelected = selectedCallId === p.id ? ' selected' : '';
+    const newClass = 'call-card' + wantActive + wantSelected;
+    if (card.className !== newClass) card.className = newClass;
+    // Update badge
+    const badge = document.getElementById('badge-' + p.id);
+    if (badge) { badge.style.background = sb.bg; badge.style.color = sb.color; badge.textContent = sb.emoji + ' ' + sb.label; }
+    // Update gauge
+    const gauge = document.getElementById('gauge-' + p.id);
+    if (gauge) gauge.innerHTML = miniGaugeSVG(displayScore, p.triageColor);
+    // Update timer
+    const timer = document.getElementById('timer-' + p.id);
+    if (timer) timer.textContent = cs.started ? formatDuration(cs.duration) : '--:--';
   });
 }
 
 // ===== RENDER BOTTOM BAR =====
+let bottomBarBuilt = false;
 function renderBottomBar() {
   const bar = document.getElementById('bottombar');
-  bar.innerHTML = '';
+  if (!bottomBarBuilt) {
+    bar.innerHTML = '';
+    PATIENTS.forEach(p => {
+      const item = document.createElement('div');
+      item.id = 'bb-' + p.id;
+      item.className = 'bb-item';
+      item.onclick = () => selectCall(p.id);
+      item.innerHTML = `
+        <div class="bb-avatar" style="background:${p.triageColor}">${p.initials}</div>
+        <div class="bb-dot" id="bbdot-${p.id}"></div>
+        <span class="bb-status" id="bbstatus-${p.id}"></span>`;
+      bar.appendChild(item);
+    });
+    bottomBarBuilt = true;
+  }
   PATIENTS.forEach(p => {
     const cs = callStates[p.id];
     const sb = getStatusBadge(cs.status);
-    const item = document.createElement('div');
-    item.className = `bb-item${selectedCallId===p.id?' active':''}`;
-    item.onclick = () => selectCall(p.id);
-    item.innerHTML = `
-      <div class="bb-avatar" style="background:${p.triageColor}">${p.initials}</div>
-      <div class="bb-dot" style="background:${sb.color}"></div>
-      <span class="bb-status">${sb.label}</span>`;
-    bar.appendChild(item);
+    const item = document.getElementById('bb-' + p.id);
+    if (!item) return;
+    const newClass = 'bb-item' + (selectedCallId === p.id ? ' active' : '');
+    if (item.className !== newClass) item.className = newClass;
+    const dot = document.getElementById('bbdot-' + p.id);
+    if (dot) dot.style.background = sb.color;
+    const status = document.getElementById('bbstatus-' + p.id);
+    if (status) status.textContent = sb.label;
   });
 }
 
 // ===== RENDER SPLIT VIEW =====
+let splitBuiltForId = null;
+let lastTranscriptCount = 0;
 function renderSplit() {
   if (!selectedCallId) return;
   const p = PATIENTS.find(x=>x.id===selectedCallId);
   const cs = callStates[p.id];
   const sb = getStatusBadge(cs.status);
   const displayScore = Math.round(p.triageScore * cs.triageProgress);
-  const progress = p.conversation.length > 0 ? cs.transcriptIndex / p.conversation.length : 0;
 
-  // LEFT PANEL
-  const left = document.getElementById('splitLeft');
-  left.innerHTML = `
-    <!-- Patient Bar -->
-    <div class="patient-bar">
-      <div>
-        <div class="pb-name">${p.name}</div>
-        <div class="pb-details">
-          <span class="pb-detail">${p.age}${p.sex}</span>
-          <span class="pb-detail">HC: ${p.healthCard}</span>
-          <span class="pb-detail" style="color:${sb.color}">${sb.emoji} ${sb.label}</span>
+  // Full build only when switching patients
+  if (splitBuiltForId !== p.id) {
+    splitBuiltForId = p.id;
+    lastTranscriptCount = 0;
+    const left = document.getElementById('splitLeft');
+    left.innerHTML = `
+      <div class="patient-bar">
+        <div>
+          <div class="pb-name">${p.name}</div>
+          <div class="pb-details">
+            <span class="pb-detail">${p.age}${p.sex}</span>
+            <span class="pb-detail">HC: ${p.healthCard}</span>
+            <span class="pb-detail" id="sp-status"></span>
+          </div>
+        </div>
+        <button class="back-btn" onclick="backToGrid()">← Back to Grid</button>
+      </div>
+      <div class="verify-bar" id="sp-verify">
+        ${['Identity Verified','Health Card Validated','Symptoms Collected','History Reviewed','Triage Decision'].map((label,i) =>
+          `<div class="verify-item" id="sp-v${i}"><div class="verify-check" id="sp-vc${i}"></div>${label}</div>`
+        ).join('')}
+      </div>
+      <div class="split-middle">
+        <div class="transcript-col">
+          <div class="transcript-box">
+            <div class="transcript-header">💬 Live Transcript</div>
+            <div class="transcript-body" id="transcriptBody"></div>
+          </div>
+        </div>
+        <div class="info-col">
+          <div class="accordion open">
+            <div class="acc-header" onclick="this.parentElement.classList.toggle('open')"><span>👤 Demographics</span><span class="acc-arrow">▶</span></div>
+            <div class="acc-body"><strong>Name:</strong> ${p.name}<br><strong>Age/Sex:</strong> ${p.age}${p.sex}<br><strong>Health Card:</strong> ${p.healthCard}<br><strong>Vitals:</strong><br>HR: ${p.vitals.hr} | BP: ${p.vitals.bp}<br>Temp: ${p.vitals.temp}°C | RR: ${p.vitals.rr}<br>O₂: ${p.vitals.o2}% | Pain: ${p.vitals.pain}/10</div>
+          </div>
+          <div class="accordion${p.conditions.length?' open':''}">
+            <div class="acc-header" onclick="this.parentElement.classList.toggle('open')"><span>🩺 Conditions</span><span class="acc-arrow">▶</span></div>
+            <div class="acc-body">${p.conditions.length ? p.conditions.map(c=>'• '+c).join('<br>') : 'None on file'}</div>
+          </div>
+          <div class="accordion${p.meds.length?' open':''}">
+            <div class="acc-header" onclick="this.parentElement.classList.toggle('open')"><span>💊 Medications</span><span class="acc-arrow">▶</span></div>
+            <div class="acc-body">${p.meds.length ? p.meds.map(m=>'• '+m).join('<br>') : 'None on file'}</div>
+          </div>
+          <div class="accordion open">
+            <div class="acc-header" onclick="this.parentElement.classList.toggle('open')"><span>⚠️ Allergies</span><span class="acc-arrow">▶</span></div>
+            <div class="acc-body">${p.allergies.map(a=>'• '+a).join('<br>')}</div>
+          </div>
         </div>
       </div>
-      <button class="back-btn" onclick="backToGrid()">← Back to Grid</button>
-    </div>
-
-    <!-- Verification -->
-    <div class="verify-bar">
-      ${['Identity Verified','Health Card Validated','Symptoms Collected','History Reviewed','Triage Decision'].map((label,i) =>
-        `<div class="verify-item${cs.checks[i]?' done':''}"><div class="verify-check">${cs.checks[i]?'✓':''}</div>${label}</div>`
-      ).join('')}
-    </div>
-
-    <!-- Middle columns -->
-    <div class="split-middle">
-      <div class="transcript-col">
-        <div class="transcript-box">
-          <div class="transcript-header">💬 Live Transcript</div>
-          <div class="transcript-body" id="transcriptBody">
-            ${p.conversation.slice(0, cs.transcriptIndex).map(msg =>
-              `<div class="msg msg-${msg.role==='ai'?'ai':'patient'}">
-                <div class="msg-label">${msg.role==='ai'?'🤖 AI Assistant':'👤 '+p.name}</div>
-                ${highlightMedical(msg.text)}
-              </div>`
+      <div class="triage-map-row">
+        <div class="triage-section">
+          <div id="sp-gauge"></div>
+          <div>
+            <div class="triage-label">Triage Score</div>
+            <div class="triage-rec" id="sp-triage-rec" style="color:${p.triageColor}">${p.triageLevel}</div>
+            <div style="font-size:11px;color:var(--text-dim);margin-top:4px">→ ${p.routing}</div>
+          </div>
+        </div>
+        <div class="map-section">
+          <div id="map"></div>
+          <div class="facility-list">
+            ${FACILITIES.filter(f=>f.id!=='FAC-012').map(f=>
+              `<div class="fac-item"><div class="fac-dot" style="background:${f.color}"></div><span class="fac-name">${f.name}</span><span class="fac-wait">${f.wait}${f.closed?' ⛔':''}</span></div>`
             ).join('')}
           </div>
         </div>
-      </div>
-      <div class="info-col">
-        <!-- Demographics -->
-        <div class="accordion open">
-          <div class="acc-header" onclick="this.parentElement.classList.toggle('open')">
-            <span>👤 Demographics</span><span class="acc-arrow">▶</span>
-          </div>
-          <div class="acc-body">
-            <strong>Name:</strong> ${p.name}<br>
-            <strong>Age/Sex:</strong> ${p.age}${p.sex}<br>
-            <strong>Health Card:</strong> ${p.healthCard}<br>
-            <strong>Vitals:</strong><br>
-            HR: ${p.vitals.hr} | BP: ${p.vitals.bp}<br>
-            Temp: ${p.vitals.temp}°C | RR: ${p.vitals.rr}<br>
-            O₂: ${p.vitals.o2}% | Pain: ${p.vitals.pain}/10
-          </div>
-        </div>
-        <!-- Conditions -->
-        <div class="accordion${p.conditions.length?' open':''}">
-          <div class="acc-header" onclick="this.parentElement.classList.toggle('open')">
-            <span>🩺 Conditions</span><span class="acc-arrow">▶</span>
-          </div>
-          <div class="acc-body">${p.conditions.length ? p.conditions.map(c=>'• '+c).join('<br>') : 'None on file'}</div>
-        </div>
-        <!-- Medications -->
-        <div class="accordion${p.meds.length?' open':''}">
-          <div class="acc-header" onclick="this.parentElement.classList.toggle('open')">
-            <span>💊 Medications</span><span class="acc-arrow">▶</span>
-          </div>
-          <div class="acc-body">${p.meds.length ? p.meds.map(m=>'• '+m).join('<br>') : 'None on file'}</div>
-        </div>
-        <!-- Allergies -->
-        <div class="accordion open">
-          <div class="acc-header" onclick="this.parentElement.classList.toggle('open')">
-            <span>⚠️ Allergies</span><span class="acc-arrow">▶</span>
-          </div>
-          <div class="acc-body">${p.allergies.map(a=>'• '+a).join('<br>')}</div>
-        </div>
-      </div>
-    </div>
+      </div>`;
 
-    <!-- Triage + Map -->
-    <div class="triage-map-row">
-      <div class="triage-section">
-        <div>${largeGaugeSVG(displayScore, p.triageColor)}</div>
-        <div>
-          <div class="triage-label">Triage Score</div>
-          <div class="triage-rec" style="color:${p.triageColor}">${p.triageLevel}</div>
-          <div style="font-size:11px;color:var(--text-dim);margin-top:4px">→ ${p.routing}</div>
+    // Phone panel - build once
+    const right = document.getElementById('splitRight');
+    right.innerHTML = `
+      <div class="phone-frame">
+        <div class="phone-notch"></div>
+        <div class="phone-content">
+          <div class="phone-caller">
+            <div class="phone-caller-name">BC Health Line</div>
+            <div class="phone-caller-sub" id="sp-phone-name">${p.name}</div>
+          </div>
+          <div class="phone-timer" id="sp-phone-timer">00:00:00</div>
+          <div class="waveform" id="waveform">
+            ${Array(8).fill(0).map(()=>`<div class="wave-bar" style="height:20%"></div>`).join('')}
+          </div>
+          <div class="speaking-indicator" id="sp-speaking"></div>
+          <div class="phone-controls">
+            <button class="phone-btn phone-btn-mic">🎤</button>
+            <button class="phone-btn phone-btn-end">📞</button>
+            <button class="phone-btn phone-btn-vol">🔊</button>
+          </div>
         </div>
-      </div>
-      <div class="map-section">
-        <div id="map"></div>
-        <div class="facility-list">
-          ${FACILITIES.filter(f=>f.id!=='FAC-012').map(f=>
-            `<div class="fac-item">
-              <div class="fac-dot" style="background:${f.color}"></div>
-              <span class="fac-name">${f.name}</span>
-              <span class="fac-wait">${f.wait}${f.closed?' ⛔':''}</span>
-            </div>`
-          ).join('')}
-        </div>
-      </div>
-    </div>`;
+      </div>`;
 
-  // Scroll transcript
-  setTimeout(() => {
-    const tb = document.getElementById('transcriptBody');
-    if (tb) tb.scrollTop = tb.scrollHeight;
-  }, 50);
+    // Init map once for this patient
+    setTimeout(initMap, 100);
+  }
 
-  // Init map
-  setTimeout(initMap, 100);
+  // === In-place updates only (no DOM rebuild) ===
 
-  // RIGHT PANEL - Phone
-  const right = document.getElementById('splitRight');
+  // Status badge
+  const spStatus = document.getElementById('sp-status');
+  if (spStatus) { spStatus.style.color = sb.color; spStatus.textContent = sb.emoji + ' ' + sb.label; }
+
+  // Verification checks
+  for (let i = 0; i < 5; i++) {
+    const vi = document.getElementById('sp-v' + i);
+    const vc = document.getElementById('sp-vc' + i);
+    if (vi) vi.className = 'verify-item' + (cs.checks[i] ? ' done' : '');
+    if (vc) vc.textContent = cs.checks[i] ? '✓' : '';
+  }
+
+  // Transcript - only append new messages (never rebuild)
+  const tb = document.getElementById('transcriptBody');
+  if (tb && cs.transcriptIndex > lastTranscriptCount) {
+    for (let i = lastTranscriptCount; i < cs.transcriptIndex; i++) {
+      const msg = p.conversation[i];
+      if (!msg) continue;
+      const div = document.createElement('div');
+      div.className = 'msg msg-' + (msg.role === 'ai' ? 'ai' : 'patient');
+      div.innerHTML = `<div class="msg-label">${msg.role==='ai'?'🤖 AI Assistant':'👤 '+p.name}</div>${highlightMedical(msg.text)}`;
+      tb.appendChild(div);
+    }
+    lastTranscriptCount = cs.transcriptIndex;
+    tb.scrollTop = tb.scrollHeight;
+  }
+
+  // Triage gauge
+  const spGauge = document.getElementById('sp-gauge');
+  if (spGauge) spGauge.innerHTML = largeGaugeSVG(displayScore, p.triageColor);
+
+  // Phone timer
+  const spTimer = document.getElementById('sp-phone-timer');
+  if (spTimer) spTimer.textContent = cs.started ? formatDurationLong(cs.duration) : '00:00:00';
+
+  // Speaking indicator
   const isActive = ['connected','verifying','assessing'].includes(cs.status);
-  right.innerHTML = `
-    <div class="phone-frame">
-      <div class="phone-notch"></div>
-      <div class="phone-content">
-        <div class="phone-caller">
-          <div class="phone-caller-name">BC Health Line</div>
-          <div class="phone-caller-sub">${p.name}</div>
-        </div>
-        <div class="phone-timer">${cs.started ? formatDurationLong(cs.duration) : '00:00:00'}</div>
-        <div class="waveform" id="waveform">
-          ${Array(8).fill(0).map(()=>`<div class="wave-bar" style="height:20%"></div>`).join('')}
-        </div>
-        <div class="speaking-indicator">
-          ${isActive ? '<div class="speaking-dot"></div>' : ''}
-          <span>${isActive ? (cs.transcriptIndex % 2 === 0 ? 'Assistant speaking' : 'Listening...') : (cs.status==='complete'?'Call ended':'Waiting...')}</span>
-        </div>
-        <div class="phone-controls">
-          <button class="phone-btn phone-btn-mic">🎤</button>
-          <button class="phone-btn phone-btn-end">📞</button>
-          <button class="phone-btn phone-btn-vol">🔊</button>
-        </div>
-      </div>
-    </div>`;
+  const spSpeaking = document.getElementById('sp-speaking');
+  if (spSpeaking) {
+    spSpeaking.innerHTML = isActive
+      ? '<div class="speaking-dot"></div><span>' + (cs.transcriptIndex % 2 === 0 ? 'Assistant speaking' : 'Listening...') + '</span>'
+      : '<span>' + (cs.status==='complete' ? 'Call ended' : 'Waiting...') + '</span>';
+  }
 }
 
 // ===== MAP =====
@@ -753,6 +795,7 @@ function showView(view) {
 }
 
 function selectCall(id) {
+  if (selectedCallId !== id) splitBuiltForId = null; // force rebuild for new patient
   selectedCallId = id;
   showView('split');
   renderSplit();
@@ -761,6 +804,7 @@ function selectCall(id) {
 
 function backToGrid() {
   selectedCallId = null;
+  splitBuiltForId = null;
   showView('dashboard');
   renderGrid();
   renderBottomBar();
@@ -770,6 +814,9 @@ function backToGrid() {
 // ===== SIMULATION =====
 function startDemo() {
   initCallStates();
+  gridBuilt = false;
+  bottomBarBuilt = false;
+  splitBuiltForId = null;
   showView('dashboard');
   renderGrid();
   renderBottomBar();
