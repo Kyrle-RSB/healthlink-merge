@@ -535,7 +535,11 @@ function clearProvider() {
 }
 
 // Typing: add message char by char
+// Speed multiplier: 3 = 3x faster. Change this single value to adjust all demo timing.
+const DEMO_SPEED = 3;
+
 function typeMessage(container, role, text, speed = 30) {
+  const adjustedSpeed = Math.max(5, Math.round(speed / DEMO_SPEED));
   return new Promise(resolve => {
     const bubble = document.createElement('div');
     bubble.className = 'bubble bubble-' + (role === 'patient' ? 'patient' : 'ai');
@@ -557,7 +561,7 @@ function typeMessage(container, role, text, speed = 30) {
         container.scrollTop = container.scrollHeight;
         resolve();
       }
-    }, speed);
+    }, adjustedSpeed);
   });
 }
 
@@ -570,7 +574,7 @@ function hideTyping() {
   $('#phone-typing').style.display = 'none';
 }
 
-function wait(ms) { return new Promise(r => setTimeout(r, ms)); }
+function wait(ms) { return new Promise(r => setTimeout(r, Math.max(50, Math.round(ms / DEMO_SPEED)))); }
 
 function randomDelay(min, max) { return wait(min + Math.random() * (max - min)); }
 
@@ -1381,6 +1385,17 @@ function jumpToScene(idx) {
   closeSceneNav();
   sceneIndex = idx;
   hideContinue();
+  // Set the correct screen for this scene
+  const scene = SCENES[idx];
+  if (scene) {
+    showScreen(scene.screen);
+    // Move phone to correct container
+    if (scene.screen === 'phone-only') {
+      movePhone('screen-phone-only');
+    } else if (scene.screen === 'split') {
+      movePhone('split-phone');
+    }
+  }
   runScene();
 }
 </script>
