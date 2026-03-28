@@ -651,6 +651,7 @@ function renderZoomCard() {
       <label class="form-label" style="margin-top:8px">Client Secret</label>
       <input type="password" id="int-zoom-secret" class="form-input" placeholder="${configured ? '••••••••••••••••' : 'Client Secret'}" ${locked ? 'disabled' : ''}>
       <div class="int-note" style="margin-top:6px">Credentials are encrypted with AES-256 before storage.</div>
+      <button class="btn btn-sm btn-primary" style="margin-top:10px" onclick="saveZoomConfig('s2s')">Save S2S OAuth</button>
     </div>
 
     <!-- Meeting SDK Section -->
@@ -660,6 +661,7 @@ function renderZoomCard() {
       <input type="text" id="int-zoom-sdk-key" class="form-input" placeholder="SDK Key / Client ID" value="${cfg.sdk_key || ''}" ${locked ? 'disabled' : ''}>
       <label class="form-label" style="margin-top:8px">SDK Secret (Client Secret)</label>
       <input type="password" id="int-zoom-sdk-secret" class="form-input" placeholder="${configured && cfg.sdk_secret ? '••••••••••••••••' : 'SDK Secret / Client Secret'}" ${locked ? 'disabled' : ''}>
+      <button class="btn btn-sm btn-primary" style="margin-top:10px" onclick="saveZoomConfig('sdk')">Save Meeting SDK</button>
     </div>
 
     <!-- OAuth Authorization (OBF) Section -->
@@ -714,19 +716,26 @@ async function loadZoomConfig() {
   }
 }
 
-async function saveZoomConfig() {
-  const account = document.getElementById('int-zoom-account').value.trim();
-  const client = document.getElementById('int-zoom-client').value.trim();
-  const secret = document.getElementById('int-zoom-secret').value.trim();
-  const sdkKey = document.getElementById('int-zoom-sdk-key').value.trim();
-  const sdkSecret = document.getElementById('int-zoom-sdk-secret').value.trim();
-  const active = document.getElementById('int-zoom-active').checked;
+async function saveZoomConfig(section) {
+  const payload = {};
 
-  if (!account || !client || !secret) { alert('Account ID, Client ID, and Client Secret are required'); return; }
+  if (!section || section === 's2s') {
+    const account = document.getElementById('int-zoom-account').value.trim();
+    const client = document.getElementById('int-zoom-client').value.trim();
+    const secret = document.getElementById('int-zoom-secret').value.trim();
+    if (!account || !client || !secret) { alert('Account ID, Client ID, and Client Secret are all required for S2S OAuth'); return; }
+    payload.accountId = account;
+    payload.clientId = client;
+    payload.clientSecret = secret;
+  }
 
-  const payload = { accountId: account, clientId: client, clientSecret: secret };
-  if (sdkKey) payload.sdkKey = sdkKey;
-  if (sdkSecret) payload.sdkSecret = sdkSecret;
+  if (!section || section === 'sdk') {
+    const sdkKey = document.getElementById('int-zoom-sdk-key').value.trim();
+    const sdkSecret = document.getElementById('int-zoom-sdk-secret').value.trim();
+    if (!sdkKey || !sdkSecret) { alert('SDK Key and SDK Secret are both required for Meeting SDK'); return; }
+    payload.sdkKey = sdkKey;
+    payload.sdkSecret = sdkSecret;
+  }
 
   // Try the dedicated zoom config endpoint first, fall back to generic
   let res;
@@ -739,7 +748,7 @@ async function saveZoomConfig() {
     // Fall back to generic integrations endpoint
     res = await api('/api/integrations/zoom', {
       method: 'PUT',
-      body: JSON.stringify({ config: payload, is_active: active ? 1 : 0 }),
+      body: JSON.stringify({ config: payload, is_active: 1 }),
     });
   }
 

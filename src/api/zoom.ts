@@ -131,23 +131,39 @@ export async function zoomConfigPutHandler(
   _ctx: AuthedRequest
 ): Promise<Response> {
   const body = await parseBody<{
-    accountId: string;
-    clientId: string;
-    clientSecret: string;
+    accountId?: string;
+    clientId?: string;
+    clientSecret?: string;
     sdkKey?: string;
     sdkSecret?: string;
   }>(request);
 
-  if (!body.accountId || !body.clientId || !body.clientSecret) {
-    return error("accountId, clientId, and clientSecret are required", 400);
+  const hasS2S = body.accountId || body.clientId || body.clientSecret;
+  const hasSdk = body.sdkKey || body.sdkSecret;
+
+  if (!hasS2S && !hasSdk) {
+    return error("Provide S2S OAuth fields (accountId, clientId, clientSecret) and/or SDK fields (sdkKey, sdkSecret)", 400);
   }
 
+  // Partial S2S: all three are required together
+  if (hasS2S && (!body.accountId || !body.clientId || !body.clientSecret)) {
+    return error("accountId, clientId, and clientSecret are all required for S2S OAuth", 400);
+  }
+
+  // Partial SDK: both are required together
+  if (hasSdk && (!body.sdkKey || !body.sdkSecret)) {
+    return error("sdkKey and sdkSecret are both required for Meeting SDK", 400);
+  }
+
+  // Load existing config to merge with
+  const existing = await loadZoomProviderConfig(env.DB, env.AUTH_SECRET);
+
   const config: ZoomProviderConfig = {
-    accountId: body.accountId,
-    clientId: body.clientId,
-    clientSecret: body.clientSecret,
-    sdkKey: body.sdkKey,
-    sdkSecret: body.sdkSecret,
+    accountId: body.accountId ?? existing?.accountId ?? "",
+    clientId: body.clientId ?? existing?.clientId ?? "",
+    clientSecret: body.clientSecret ?? existing?.clientSecret ?? "",
+    sdkKey: body.sdkKey ?? existing?.sdkKey,
+    sdkSecret: body.sdkSecret ?? existing?.sdkSecret,
   };
 
   const encrypted = await encrypt(JSON.stringify(config), env.AUTH_SECRET);
