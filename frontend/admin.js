@@ -9,7 +9,43 @@ document.addEventListener('DOMContentLoaded', () => {
   setupNav();
   const page = location.hash.slice(1) || 'dashboard';
   showPage(page);
+  checkZoomSdkCallback();
 });
+
+function checkZoomSdkCallback() {
+  const params = new URLSearchParams(window.location.search);
+  const zoomSdk = params.get('zoom_sdk');
+  if (zoomSdk === 'connected') {
+    showToast('Zoom SDK OAuth connected successfully!', 'success');
+    // Navigate to integrations page to show the updated state
+    location.hash = 'integrations';
+    // Clean URL
+    window.history.replaceState({}, '', window.location.pathname + window.location.hash);
+  } else if (zoomSdk === 'error') {
+    const msg = params.get('message') || 'Failed to connect Zoom SDK OAuth.';
+    showToast(msg, 'error');
+    location.hash = 'integrations';
+    window.history.replaceState({}, '', window.location.pathname + window.location.hash);
+  }
+}
+
+function showToast(message, type = 'info') {
+  const existing = document.querySelector('.admin-toast');
+  if (existing) existing.remove();
+
+  const toast = document.createElement('div');
+  toast.className = 'admin-toast';
+  const bgColor = type === 'success' ? 'var(--success, #22C55E)' : type === 'error' ? 'var(--danger, #EF4444)' : 'var(--primary, #38BDF8)';
+  toast.style.cssText = `position:fixed;top:20px;right:20px;z-index:10000;padding:12px 20px;border-radius:8px;background:${bgColor};color:#fff;font-size:13px;font-weight:600;box-shadow:0 4px 12px rgba(0,0,0,0.3);transition:opacity 0.3s,transform 0.3s;transform:translateY(-10px);opacity:0`;
+  toast.textContent = message;
+  document.body.appendChild(toast);
+  requestAnimationFrame(() => { toast.style.opacity = '1'; toast.style.transform = 'translateY(0)'; });
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    toast.style.transform = 'translateY(-10px)';
+    setTimeout(() => toast.remove(), 300);
+  }, 4000);
+}
 
 // ---- API ----
 async function api(path, options = {}) {
@@ -490,6 +526,8 @@ async function loadIntegrations() {
   const configs = res.ok ? res.data : [];
   intConfigs = Object.fromEntries(configs.map(c => [c.provider, c]));
   renderIntegrations();
+  // Also try dedicated zoom config endpoint for richer data
+  loadZoomConfig();
 }
 
 function renderIntegrations() {
@@ -541,44 +579,202 @@ function renderOpenAICard() {
   </div>`;
 }
 
+let zoomFieldsLocked = true;
+
 function renderZoomCard() {
   const c = intConfigs.zoom;
+  const cfg = c?.config ? (typeof c.config === 'string' ? (() => { try { return JSON.parse(c.config); } catch { return {}; } })() : c.config) : {};
   const configured = c && c.config && c.config !== '{}';
-  return `<div class="integration-card">
+  const sdkConnected = cfg.sdk_oauth_connected || false;
+  const oauthRedirectUrl = 'https://healthlink-merged.madeonmerit.com/api/zoom/sdk/callback';
+  const locked = zoomFieldsLocked && configured;
+
+  return `<div class="integration-card" style="grid-column:1/-1">
     <div class="ic-header">
       <div class="ic-icon" style="background:#2d8cff20;color:#2d8cff">📹</div>
       <span class="ic-name">Zoom</span>
       ${configured ? '<span class="badge badge-active" style="margin-left:auto">Configured</span>' : ''}
     </div>
-    <div class="ic-desc">Video meetings for live patient consultations and care coordination.</div>
+    <div class="ic-desc">Video meetings for live patient consultations and care coordination. Includes Server-to-Server OAuth for backend meeting creation and Meeting SDK for in-browser video.</div>
+
+    <!-- Setup Instructions -->
     <details class="int-setup" ${!configured ? 'open' : ''}>
-      <summary>Setup Instructions — Server-to-Server OAuth</summary>
-      <ol class="setup-steps">
-        <li>Go to <a href="https://marketplace.zoom.us/" target="_blank">marketplace.zoom.us</a> and sign in</li>
-        <li>Click "Develop" then "Build App"</li>
-        <li>Select <strong>Server-to-Server OAuth</strong> app type</li>
-        <li>Copy your <strong>Account ID</strong>, <strong>Client ID</strong>, and <strong>Client Secret</strong></li>
-        <li>Under Scopes, add: <code>meeting:write:admin</code> and <code>meeting:read:admin</code></li>
-        <li>Activate the app, then paste credentials below</li>
-      </ol>
+      <summary>Setup Instructions</summary>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:8px">
+        <div>
+          <strong style="font-size:13px">Server-to-Server OAuth App</strong>
+          <ol class="setup-steps" style="margin-top:4px">
+            <li>Go to <a href="https://marketplace.zoom.us/" target="_blank">marketplace.zoom.us</a> and sign in</li>
+            <li>Click <strong>Develop</strong> then <strong>Build App</strong></li>
+            <li>Select <strong>Server-to-Server OAuth</strong> app type</li>
+            <li>Copy your <strong>Account ID</strong>, <strong>Client ID</strong>, and <strong>Client Secret</strong></li>
+            <li>Under Scopes, add: <code>meeting:write:admin</code> and <code>meeting:read:admin</code></li>
+            <li>Activate the app, then paste credentials below</li>
+          </ol>
+        </div>
+        <div>
+          <strong style="font-size:13px">Meeting SDK App</strong>
+          <ol class="setup-steps" style="margin-top:4px">
+            <li>Go to <a href="https://marketplace.zoom.us/" target="_blank">marketplace.zoom.us</a> and sign in</li>
+            <li>Click <strong>Develop</strong> then <strong>Build App</strong></li>
+            <li>Select <strong>Meeting SDK</strong> app type</li>
+            <li>Copy the <strong>SDK Key (Client ID)</strong> and <strong>SDK Secret (Client Secret)</strong></li>
+            <li>Set OAuth Redirect URL to the value shown below</li>
+            <li>Paste credentials in the Meeting SDK section</li>
+          </ol>
+        </div>
+      </div>
+      <div style="margin-top:10px">
+        <label class="form-label">OAuth Redirect URL</label>
+        <div style="display:flex;gap:6px">
+          <input type="text" class="form-input" value="${esc(oauthRedirectUrl)}" readonly style="background:var(--surface-hover);color:var(--text-muted);font-family:monospace;font-size:12px">
+          <button class="btn btn-sm" onclick="navigator.clipboard.writeText('${esc(oauthRedirectUrl)}');this.textContent='Copied!';setTimeout(()=>this.textContent='Copy',1500)">Copy</button>
+        </div>
+      </div>
+      <div style="margin-top:8px">
+        <a href="https://developers.zoom.us/docs/api/" target="_blank" style="font-size:12px;color:var(--primary)">Zoom API Documentation &rarr;</a>
+      </div>
     </details>
-    <div style="margin-top:12px">
+
+    <!-- Server-to-Server OAuth Section -->
+    <div style="margin-top:16px;padding:14px;border:1px solid var(--border);border-radius:8px;background:var(--surface)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <strong style="font-size:13px">Server-to-Server OAuth</strong>
+        ${configured ? `<button class="btn btn-sm ${locked ? 'btn-outline' : ''}" onclick="unlockZoomEdit()" style="font-size:11px">
+          ${locked ? '🔒 Unlock to Edit' : '🔓 Editing — Click to Lock'}
+        </button>` : ''}
+      </div>
       <label class="form-label">Account ID</label>
-      <input type="text" id="int-zoom-account" class="form-input" placeholder="Account ID" value="">
+      <input type="text" id="int-zoom-account" class="form-input" placeholder="Account ID" value="${configured ? (cfg.account_id || '') : ''}" ${locked ? 'disabled' : ''}>
       <label class="form-label" style="margin-top:8px">Client ID</label>
-      <input type="text" id="int-zoom-client" class="form-input" placeholder="Client ID" value="">
+      <input type="text" id="int-zoom-client" class="form-input" placeholder="Client ID" value="${configured ? (cfg.client_id || '') : ''}" ${locked ? 'disabled' : ''}>
       <label class="form-label" style="margin-top:8px">Client Secret</label>
-      <input type="password" id="int-zoom-secret" class="form-input" placeholder="${configured ? '••••••••••••••••' : 'Client Secret'}">
-      <label class="form-label" style="margin-top:8px">
+      <input type="password" id="int-zoom-secret" class="form-input" placeholder="${configured ? '••••••••••••••••' : 'Client Secret'}" ${locked ? 'disabled' : ''}>
+      <div class="int-note" style="margin-top:6px">Credentials are encrypted with AES-256 before storage.</div>
+    </div>
+
+    <!-- Meeting SDK Section -->
+    <div style="margin-top:12px;padding:14px;border:1px solid var(--border);border-radius:8px;background:var(--surface)">
+      <strong style="font-size:13px;display:block;margin-bottom:12px">Meeting SDK</strong>
+      <label class="form-label">SDK Key (Client ID)</label>
+      <input type="text" id="int-zoom-sdk-key" class="form-input" placeholder="SDK Key / Client ID" value="${cfg.sdk_key || ''}" ${locked ? 'disabled' : ''}>
+      <label class="form-label" style="margin-top:8px">SDK Secret (Client Secret)</label>
+      <input type="password" id="int-zoom-sdk-secret" class="form-input" placeholder="${configured && cfg.sdk_secret ? '••••••••••••••••' : 'SDK Secret / Client Secret'}" ${locked ? 'disabled' : ''}>
+    </div>
+
+    <!-- OAuth Authorization (OBF) Section -->
+    <div style="margin-top:12px;padding:14px;border:1px solid var(--border);border-radius:8px;background:var(--surface)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <strong style="font-size:13px">OAuth Authorization (OBF)</strong>
+        ${sdkConnected
+          ? '<span class="badge badge-active" style="font-size:11px">Connected</span>'
+          : '<span class="badge" style="font-size:11px;background:var(--surface-hover);color:var(--text-muted)">Not Connected</span>'}
+      </div>
+      <div class="ic-desc" style="margin-bottom:10px">Connect SDK OAuth to enable in-browser meeting join with user context.</div>
+      <div style="display:flex;gap:6px;align-items:center">
+        ${sdkConnected
+          ? `<button class="btn btn-sm" style="color:var(--danger)" onclick="disconnectZoomSdk()">Disconnect</button>
+             <span style="font-size:12px;color:var(--success)">SDK OAuth is connected and active.</span>`
+          : `<a href="/api/zoom/sdk/connect" class="btn btn-sm btn-primary" style="text-decoration:none">Connect SDK OAuth</a>`}
+      </div>
+    </div>
+
+    <!-- Active toggle & Save -->
+    <div style="margin-top:14px;display:flex;align-items:center;justify-content:space-between">
+      <label class="form-label" style="margin:0;display:flex;align-items:center;gap:6px">
         <input type="checkbox" id="int-zoom-active" ${c?.is_active ? 'checked' : ''}> Active
       </label>
-      <div style="margin-top:10px;display:flex;gap:6px">
-        <button class="btn btn-sm btn-primary" onclick="saveIntegration('zoom')">Save</button>
+      <div style="display:flex;gap:6px">
+        <button class="btn btn-sm btn-primary" onclick="saveZoomConfig()">Save Zoom Config</button>
         ${configured ? '<button class="btn btn-sm" style="color:var(--danger)" onclick="removeIntegration(\'zoom\')">Remove</button>' : ''}
       </div>
-      <div class="int-note">Credentials are encrypted with AES-256 before storage.</div>
     </div>
   </div>`;
+}
+
+function unlockZoomEdit() {
+  zoomFieldsLocked = !zoomFieldsLocked;
+  renderIntegrations();
+}
+
+async function loadZoomConfig() {
+  try {
+    const res = await api('/api/zoom/config');
+    if (res.ok && res.data) {
+      // Merge zoom config into intConfigs so renderZoomCard can use it
+      intConfigs.zoom = {
+        ...intConfigs.zoom,
+        config: typeof res.data === 'string' ? res.data : JSON.stringify(res.data),
+        is_active: res.data.is_active ?? intConfigs.zoom?.is_active,
+      };
+      renderIntegrations();
+    }
+  } catch (e) {
+    // Fall back to generic integrations data
+  }
+}
+
+async function saveZoomConfig() {
+  const account = document.getElementById('int-zoom-account').value.trim();
+  const client = document.getElementById('int-zoom-client').value.trim();
+  const secret = document.getElementById('int-zoom-secret').value.trim();
+  const sdkKey = document.getElementById('int-zoom-sdk-key').value.trim();
+  const sdkSecret = document.getElementById('int-zoom-sdk-secret').value.trim();
+  const active = document.getElementById('int-zoom-active').checked;
+
+  if (!account || !client) { alert('Account ID and Client ID are required'); return; }
+
+  const config = { account_id: account, client_id: client };
+  if (secret) config.client_secret = secret;
+  if (sdkKey) config.sdk_key = sdkKey;
+  if (sdkSecret) config.sdk_secret = sdkSecret;
+
+  // Try the dedicated zoom config endpoint first, fall back to generic
+  let res;
+  try {
+    res = await api('/api/zoom/config', {
+      method: 'PUT',
+      body: JSON.stringify({ config, is_active: active ? 1 : 0 }),
+    });
+  } catch (e) {
+    // Fall back to generic integrations endpoint
+    res = await api('/api/integrations/zoom', {
+      method: 'PUT',
+      body: JSON.stringify({ config, is_active: active ? 1 : 0 }),
+    });
+  }
+
+  if (res.ok) {
+    zoomFieldsLocked = true;
+    alert('Zoom configuration saved and encrypted.');
+    loadIntegrations();
+  } else {
+    // If dedicated endpoint failed with 404, try generic
+    if (res.status === 404 || res.error?.includes('not found')) {
+      const fallback = await api('/api/integrations/zoom', {
+        method: 'PUT',
+        body: JSON.stringify({ config, is_active: active ? 1 : 0 }),
+      });
+      if (fallback.ok) {
+        zoomFieldsLocked = true;
+        alert('Zoom configuration saved and encrypted.');
+        loadIntegrations();
+        return;
+      }
+    }
+    alert('Error: ' + (res.error || 'Failed to save'));
+  }
+}
+
+async function disconnectZoomSdk() {
+  if (!confirm('Disconnect Zoom SDK OAuth? You will need to reconnect to use in-browser meetings.')) return;
+  const res = await api('/api/zoom/sdk/disconnect', { method: 'POST' });
+  if (res.ok) {
+    alert('Zoom SDK OAuth disconnected.');
+    loadIntegrations();
+  } else {
+    alert('Error: ' + (res.error || 'Failed to disconnect'));
+  }
 }
 
 function renderRingCentralCard() {
@@ -638,14 +834,9 @@ async function saveIntegration(provider) {
     if (!key && !intConfigs.openai) { alert('API key is required'); return; }
     config = key ? { api_key: key } : undefined;
   } else if (provider === 'zoom') {
-    const account = document.getElementById('int-zoom-account').value.trim();
-    const client = document.getElementById('int-zoom-client').value.trim();
-    const secret = document.getElementById('int-zoom-secret').value.trim();
-    const active = document.getElementById('int-zoom-active').checked;
-    if (!account || !client) { alert('Account ID and Client ID are required'); return; }
-    config = { account_id: account, client_id: client };
-    if (secret) config.client_secret = secret;
-    var is_active = active ? 1 : 0;
+    // Zoom uses its own saveZoomConfig() function
+    saveZoomConfig();
+    return;
   } else if (provider === 'ringcentral') {
     const client = document.getElementById('int-rc-client').value.trim();
     const secret = document.getElementById('int-rc-secret').value.trim();

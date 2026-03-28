@@ -43,8 +43,17 @@ import {
   meetingDetailHandler,
   meetingCreateHandler,
   meetingStatusHandler,
-  zoomWebhookHandler,
 } from "./api/meetings";
+import {
+  zoomConfigGetHandler,
+  zoomConfigPutHandler,
+  zoomMeetingCreateHandler,
+  zoomMeetingSignatureHandler,
+  zoomSdkConnectHandler,
+  zoomSdkCallbackHandler,
+  zoomSdkDisconnectHandler,
+  zoomWebhookFullHandler,
+} from "./api/zoom";
 import { healthFeaturesHandler, healthDiagnoseHandler } from "./api/health-check";
 import { setLogLevel } from "./lib/logger";
 
@@ -112,8 +121,17 @@ route("POST", "/api/demo/simulate", demoSimulateHandler, true);
 route("GET", "/api/health/features", healthFeaturesHandler, true);
 route("POST", "/api/health/diagnose", healthDiagnoseHandler, true);
 
+// Zoom integration
+route("GET", "/api/zoom/config", zoomConfigGetHandler, true);
+route("PUT", "/api/zoom/config", zoomConfigPutHandler, true);
+route("POST", "/api/zoom/meeting", zoomMeetingCreateHandler, true);
+route("GET", "/api/zoom/meeting/:id/signature", zoomMeetingSignatureHandler, true);
+route("GET", "/api/zoom/sdk/connect", zoomSdkConnectHandler, true);
+route("GET", "/api/zoom/sdk/callback", zoomSdkCallbackHandler);
+route("POST", "/api/zoom/sdk/disconnect", zoomSdkDisconnectHandler, true);
+
 // Webhooks (public — no auth)
-route("POST", "/api/webhooks/zoom", zoomWebhookHandler);
+route("POST", "/api/webhooks/zoom", zoomWebhookFullHandler);
 
 // ---------- Worker Export ----------
 
