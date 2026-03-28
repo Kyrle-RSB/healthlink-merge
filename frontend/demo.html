@@ -252,6 +252,27 @@ html,body{height:100%;overflow:hidden;font-family:'Inter',system-ui,sans-serif;b
 .whatif-card.bad .whatif-val{color:var(--red)}
 .whatif-card.good .whatif-val{color:var(--green)}
 
+/* ========== SCENE NAV MENU ========== */
+.scene-nav-btn{background:none;border:none;color:var(--text-dim);cursor:pointer;padding:6px;border-radius:6px;display:flex;align-items:center;justify-content:center;transition:background .2s}
+.scene-nav-btn:hover{background:rgba(255,255,255,.08);color:var(--text)}
+.scene-nav-panel{position:fixed;top:56px;left:0;bottom:0;width:320px;max-width:85vw;background:rgba(15,23,42,.95);backdrop-filter:blur(16px);border-right:1px solid var(--border);z-index:999;transform:translateX(-100%);transition:transform .3s cubic-bezier(.4,0,.2,1);display:flex;flex-direction:column}
+.scene-nav-panel.open{transform:translateX(0)}
+.scene-nav-overlay{position:fixed;inset:0;top:56px;background:rgba(0,0,0,.4);z-index:998;opacity:0;pointer-events:none;transition:opacity .3s}
+.scene-nav-overlay.open{opacity:1;pointer-events:auto}
+.scene-nav-header{padding:12px 16px;border-bottom:1px solid var(--border);font-size:13px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;flex-shrink:0}
+.scene-nav-list{flex:1;overflow-y:auto;overflow-x:hidden;padding:8px;-webkit-overflow-scrolling:touch}
+.scene-nav-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;cursor:pointer;transition:all .2s;border:1px solid transparent;margin-bottom:2px;font-size:13px;color:var(--text)}
+.scene-nav-item:hover{background:rgba(255,255,255,.05);border-color:var(--border)}
+.scene-nav-item.active{background:rgba(56,189,248,.1);border-color:var(--accent);color:var(--accent)}
+.scene-nav-item.completed{color:var(--green)}
+.scene-nav-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;border:1.5px solid var(--border)}
+.scene-nav-item.active .scene-nav-dot{background:var(--accent);border-color:var(--accent)}
+.scene-nav-item.completed .scene-nav-dot{background:var(--green);border-color:var(--green)}
+.scene-nav-type{font-size:10px;padding:1px 6px;border-radius:4px;margin-left:auto;flex-shrink:0}
+.scene-nav-type.auto{background:rgba(56,189,248,.15);color:var(--accent)}
+.scene-nav-type.interactive{background:rgba(252,186,25,.15);color:var(--yellow)}
+.scene-nav-separator{font-size:11px;font-weight:700;color:var(--text-dim);padding:10px 12px 4px;text-transform:uppercase;letter-spacing:.5px}
+
 /* ========== CLOSING ========== */
 .closing-table{width:100%;max-width:900px;border-collapse:separate;border-spacing:0 6px}
 .closing-table th{font-size:14px;font-weight:700;padding:12px 20px;text-align:left}
@@ -285,6 +306,9 @@ html,body{height:100%;overflow:hidden;font-family:'Inter',system-ui,sans-serif;b
 <!-- ===== HEADER ===== -->
 <div id="demo-header">
   <div class="hdr-left">
+    <button class="scene-nav-btn" onclick="toggleSceneNav()" title="Scene Navigator" id="nav-hamburger" style="display:none">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+    </button>
     <div class="hdr-logo">CP</div>
     <span class="hdr-brand">SILA</span>
     <span class="hdr-scene" id="scene-label">--</span>
@@ -292,6 +316,13 @@ html,body{height:100%;overflow:hidden;font-family:'Inter',system-ui,sans-serif;b
   <div class="hdr-right">
     <button id="continue-btn" onclick="advance()">Click to Continue <span style="margin-left:4px">&rarr;</span></button>
   </div>
+</div>
+
+<!-- Scene Navigation Panel -->
+<div class="scene-nav-overlay" id="scene-nav-overlay" onclick="closeSceneNav()"></div>
+<div class="scene-nav-panel" id="scene-nav-panel">
+  <div class="scene-nav-header">Scene Navigator</div>
+  <div class="scene-nav-list" id="scene-nav-list"></div>
 </div>
 
 <!-- ===== SCREEN: Phone Only ===== -->
@@ -1244,6 +1275,7 @@ function runScene() {
   const scene = SCENES[sceneIndex];
   if (!scene) return;
   setSceneLabel(scene.label);
+  updateSceneNav();
 
   // Show/hide continue button based on type
   if (scene.type === 'interactive') {
@@ -1277,7 +1309,71 @@ function beginDemo() {
   launch.classList.add('hidden');
   setTimeout(() => { launch.style.display = 'none'; }, 600);
   $('#demo-header').classList.add('visible');
+  $('#nav-hamburger').style.display = 'flex';
+  buildSceneNav();
   sceneIndex = 0;
+  runScene();
+}
+
+// ===== SCENE NAVIGATOR =====
+function buildSceneNav() {
+  const list = $('#scene-nav-list');
+  if (!list) return;
+  const sections = [
+    { label: 'Scenario 1 — Maria', start: '1.1', end: '1.6b' },
+    { label: 'Transition', start: 'T', end: 'T' },
+    { label: 'Scenario 2 — Robert', start: '2.1', end: '2.5' },
+    { label: 'Closing', start: 'C', end: 'C' },
+  ];
+  let html = '';
+  let sectionIdx = 0;
+  SCENES.forEach((s, i) => {
+    // Add section separator
+    if (sectionIdx < sections.length && s.id === sections[sectionIdx].start) {
+      html += `<div class="scene-nav-separator">${sections[sectionIdx].label}</div>`;
+      sectionIdx++;
+    }
+    const typeClass = s.type === 'auto' ? 'auto' : 'interactive';
+    const typeLabel = s.type === 'auto' ? 'AUTO' : 'CLICK';
+    html += `<div class="scene-nav-item" id="snav-${i}" onclick="jumpToScene(${i})" title="${s.label}">
+      <div class="scene-nav-dot"></div>
+      <span>${s.label}</span>
+      <span class="scene-nav-type ${typeClass}">${typeLabel}</span>
+    </div>`;
+  });
+  list.innerHTML = html;
+}
+
+function updateSceneNav() {
+  SCENES.forEach((s, i) => {
+    const el = $(`#snav-${i}`);
+    if (!el) return;
+    el.classList.toggle('active', i === sceneIndex);
+    el.classList.toggle('completed', i < sceneIndex);
+  });
+  // Scroll active item into view
+  const active = $(`#snav-${sceneIndex}`);
+  if (active) active.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function toggleSceneNav() {
+  const panel = $('#scene-nav-panel');
+  const overlay = $('#scene-nav-overlay');
+  const isOpen = panel.classList.contains('open');
+  panel.classList.toggle('open', !isOpen);
+  overlay.classList.toggle('open', !isOpen);
+  if (!isOpen) updateSceneNav();
+}
+
+function closeSceneNav() {
+  $('#scene-nav-panel').classList.remove('open');
+  $('#scene-nav-overlay').classList.remove('open');
+}
+
+function jumpToScene(idx) {
+  closeSceneNav();
+  sceneIndex = idx;
+  hideContinue();
   runScene();
 }
 </script>
