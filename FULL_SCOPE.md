@@ -183,9 +183,9 @@ ROUTING DECISION → patient directed to right care, right place, right time
 
 ## 10. GAP ANALYSIS — What's Built vs What's Needed
 
-> Generated from codebase audit on March 28, 2026.
+> Updated: March 28, 2026 — all phases implemented.
 
-### 10.1 FULLY WORKING (no changes needed)
+### 10.1 FULLY WORKING
 
 | # | Scope Requirement | Where It Lives |
 |---|---|---|
@@ -202,69 +202,36 @@ ROUTING DECISION → patient directed to right care, right place, right time
 | 11 | Live Call Dashboard with 6 simultaneous calls | `dashboard.html` full simulation |
 | 12 | Call duration counters | Both `dashboard.html` and `carepoint.js` |
 | 13 | Zoom video call integration (backend) | `src/zoom/` + `src/api/zoom.ts` |
+| 14 | AI assessment results on dashboard cards | `dashboard.html` — aiSummary + triage score on each card |
+| 15 | Urgency ranking — cards sorted by urgency | `dashboard.html` — `getSortedPatients()` sorts by score then wait |
+| 16 | Resolution time estimates | `routing-engine.ts` `getResolutionEstimate()` by CTAS + displayed on cards |
+| 17 | Provider dashboard (queue → converse → route) | `frontend/provider.html` — 1281-line standalone page |
+| 18 | Provider text conversation with branching AI questions | `provider.html` — 6 patients × 8-12 branching response trees |
+| 19 | Provider escalate to phone/video | `provider.html` escalation buttons + `src/api/provider.ts` escalate endpoint |
+| 20 | Text returns after phone/video closes | `src/api/provider.ts` deescalate endpoint → status back to provider_active |
+| 21 | Demo with clickable provider questions | `provider.html` — AI-suggested question pills, patient auto-responds |
+| 22 | Deep conversational response database | `provider.html` — 6 patients with full branching conversation trees |
+| 23 | Queue system with intake_complete tag | `src/api/provider.ts` + `carepoint.ts` — auto-marks intake_complete after routing |
+| 24 | Phone number auto-association to patient | `src/api/carepoint.ts` + `queries-carepoint.ts` queryPatientByPhone |
+| 25 | BC Services Card validation | `src/carepoint/bc-card.ts` — format validation (10-digit, formatted output) |
+| 26 | Temp auth + link generation | `src/api/provider.ts` — KV-backed tokens with 24h TTL, link generation |
+| 27 | Confidence threshold enforcement | `routing-engine.ts` — bumps triage +1 level when confidence < 0.70, states "AI low confidence" |
 
-### 10.2 PARTIAL (needs specific additions to be complete)
+### 10.2 REQUIRES EXTERNAL SERVICE CONFIGURATION (built but needs API keys/accounts)
 
-| # | Scope Requirement | What Exists | What's Missing to Complete |
+| # | Scope Requirement | What's Built | What's Needed to Activate |
 |---|---|---|---|
-| P1 | AI assessment results updating on cards | Triage score calculated internally | Expose score/level/reasoning on dashboard call cards in real-time |
-| P2 | Urgency ranking — sort by most urgent | Each call has urgency score | Cards not sorted by urgency; need dynamic reordering |
-| P3 | AI question suggestions (RAG) | `/api/assistant/suggest` with GPT + quick response buttons | Not true RAG — no vector retrieval. Needs Pinecone/embedding search for clinical knowledge |
-| P4 | Provider text conversation | Patient↔CarePoint AI chat works | No provider↔patient messaging — provider can't type to patient |
-| P5 | Provider escalate to phone/video | Zoom meeting creation API exists | No "Escalate to Video" button in provider UI linked to current session |
-| P6 | Demo with clickable provider questions | 6 quick response buttons exist | Need deeper branching responses — patient should respond to provider clicks, not just log them |
-| P7 | Deep conversational response database | 9 scripted scenarios (6–14 turns each) | Need branching response trees so provider clicking different questions gets different patient responses |
-| P8 | Deepgram voice transcription | WebSocket integration built | Needs API key configured + no outbound call handling |
-| P9 | Temp auth for patients without health cards | Anonymous patient_id works | No temp token, no expiry, no phone-number-based file, no link generation |
+| E1 | Deepgram voice transcription | WebSocket integration in `call-transcribe.js` | Deepgram API key in admin integrations |
+| E2 | Zoom video calls | Full SDK in `src/zoom/`, admin config UI | Zoom S2S OAuth + Meeting SDK credentials |
+| E3 | AI question suggestions (GPT-powered) | `/api/assistant/suggest` endpoint + UI | OpenAI API key in admin integrations |
+| E4 | AI routing decisions (GPT-powered) | `/api/chat` with `ROUTING_SYSTEM_PROMPT` | OpenAI API key in admin integrations |
 
-### 10.3 NOT BUILT (needs new implementation)
+### 10.3 FUTURE ROADMAP (requires external services not available in hackathon)
 
-| # | Scope Requirement | What's Needed |
-|---|---|---|
-| N1 | AI voice bot as first contact | RingCentral/Twilio inbound call → AI voice agent (TTS + STT) |
-| N2 | Phone number auto-association to patient | Lookup `patients.phone` on incoming call, auto-load profile |
-| N3 | BC Services Card validation | Card format validation + identity verification questions |
-| N4 | Voice authentication from past calls | Speaker embedding enrollment + verification (future, not hackathon) |
-| N5 | Resolution time estimates (historical) | New table tracking problem_type → avg_resolution_minutes |
-| N6 | Queue system with "intake complete" tag | New status enum in routing_sessions + queue UI |
-| N7 | Provider dashboard (accept/view queued patients) | New page: provider sees queue of intake-complete patients, clicks to open |
-| N8 | Text returns after phone/video closes | Session state machine: text → phone → text (preserve connection) |
-| N9 | Phone-first access channel | RingCentral inbound number → AI pickup → transcription → routing |
-| N10 | BC Services Card app integration | Deep link / web portal that activates on call connection |
-
----
-
-## 11. IMPLEMENTATION PLAN (Prioritized for Demo Impact)
-
-### Phase 1 — Provider Dashboard + Queue (Highest Demo Impact)
-**New page: `frontend/provider.html`** — The missing piece that ties everything together.
-
-- **Queue view**: Shows all patients with "intake complete" status, sorted by urgency then wait time
-- **Patient cards**: Show AI assessment, triage score, wait duration, chief complaint
-- **Click to open**: Full patient context (transcript, history, meds, conditions, AI reasoning)
-- **Text conversation**: Provider types to patient, AI suggests questions as clickable buttons
-- **Branching responses**: Patient auto-responds based on provider's question selection
-- **Escalate buttons**: "Start Video Call" (creates Zoom meeting), "Start Phone Call"
-- **After escalation closes**: Returns to text view
-
-### Phase 2 — Queue System + Intake Complete Flow
-- Add `status = 'intake_complete'` to routing_sessions
-- After AI chat completes intake → mark session as intake_complete
-- Provider dashboard polls for intake_complete sessions
-- Provider claims a session → status becomes 'provider_active'
-
-### Phase 3 — Urgency Sorting + Resolution Estimates
-- Sort dashboard cards by triage level (L1 first) then by wait duration
-- Add `estimated_resolution_minutes` to problems table (based on CTAS level defaults)
-- Display on cards: "Est. ~15 min" based on problem type match
-
-### Phase 4 — Phone Number Association + BC Card Validation
-- On chat start, if phone number provided, lookup `patients.phone` in D1
-- Auto-load patient profile if match found
-- BC Services Card format validation (regex for BC card format)
-- Identity verification questions in AI conversation flow
-
-### Phase 5 — Temporary Auth + Link Generation
-- Generate temp token (`crypto.randomUUID`) stored in KV with 24h TTL
-- Provider clicks "Send Link" → generates URL with token
-- Patient opens link → authenticated session attached to phone number
+| # | Scope Requirement | Status | Notes |
+|---|---|---|---|
+| F1 | AI voice bot as first contact (inbound calls) | Infrastructure ready | Needs RingCentral inbound number config — SDK and admin UI built |
+| F2 | Voice authentication from past calls | Not built | Requires speaker embedding service (e.g., Azure Speaker Recognition) — post-hackathon |
+| F3 | Phone-first inbound call channel | Infrastructure ready | Needs RingCentral/Twilio inbound number provisioning |
+| F4 | BC Services Card app deep integration | Not built | Requires BC Ministry of Health API partnership — post-hackathon |
+| F5 | True RAG with vector retrieval | Pinecone integration stubbed | Needs Pinecone API key + clinical knowledge base indexed |
