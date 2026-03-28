@@ -1,5 +1,5 @@
 // ============================================================
-// CarePoint Admin Dashboard — Frontend Logic
+// SILA Admin Dashboard — Frontend Logic
 // ============================================================
 
 let adminData = { patients: [], facilities: [], problems: [], sessions: [], staff: [], snapshot: null };
@@ -482,9 +482,9 @@ async function loadAnalytics() {
       </div>
     `).join('')}
 
-    <div class="section-title" style="margin-top:20px">How CarePoint Compares</div>
+    <div class="section-title" style="margin-top:20px">How SILA Compares</div>
     <table class="data-table" style="font-size:12px">
-      <thead><tr><th></th><th>CarePoint</th><th>811 HealthLink</th><th>MyChart</th><th>OceanMD</th></tr></thead>
+      <thead><tr><th></th><th>SILA</th><th>811 HealthLink</th><th>MyChart</th><th>OceanMD</th></tr></thead>
       <tbody>
         <tr><td><strong>Who uses it</strong></td><td style="color:var(--success)">Any patient</td><td>Any patient</td><td>Existing patients only</td><td>Providers only</td></tr>
         <tr><td><strong>Wait to access</strong></td><td style="color:var(--success)">Instant</td><td>30-60 min phone wait</td><td>Login required</td><td>N/A (provider tool)</td></tr>

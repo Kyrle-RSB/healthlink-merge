@@ -10,7 +10,7 @@ let expandedKey = null;
 
 const CATEGORY_LABELS = {
   api_core: 'API Core',
-  api_carepoint: 'CarePoint API',
+  api_carepoint: 'SILA API',
   api_ai: 'AI Features',
   api_assistant: 'AI Assistant',
   api_integrations: 'Integrations',

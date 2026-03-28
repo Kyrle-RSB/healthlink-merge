@@ -1,5 +1,5 @@
 // ============================================================
-// CarePoint — Frontend Logic
+// SILA — Frontend Logic
 // ============================================================
 
 const API_BASE = '';
@@ -77,7 +77,7 @@ async function sendMessage(e) {
         startReroutePolling(currentSessionId);
       }
 
-      // CarePoint response bubble
+      // SILA response bubble
       let html = escapeHtml(d.response);
       if (d.decision && d.decision.facility) {
         const f = d.decision.facility;
@@ -129,7 +129,7 @@ function appendBubble(role, content, isHtml = false) {
   const bubble = document.createElement('div');
   bubble.className = `chat-bubble bubble-${role}`;
   bubble.setAttribute('role', 'article');
-  bubble.setAttribute('aria-label', role === 'patient' ? 'Patient message' : role === 'carepoint' ? 'CarePoint response' : 'System message');
+  bubble.setAttribute('aria-label', role === 'patient' ? 'Patient message' : role === 'carepoint' ? 'SILA response' : 'System message');
   if (isHtml) {
     bubble.innerHTML = content;
   } else {
@@ -719,7 +719,7 @@ function resetDemo() {
   document.getElementById('chat-messages').innerHTML = `
     <div class="chat-welcome">
       <div class="welcome-icon">+</div>
-      <h3>Welcome to CarePoint</h3>
+      <h3>Welcome to SILA</h3>
       <p>Describe your health concern and we'll help you find the right care.</p>
       <p class="text-muted">This is a demo with synthetic data — not real medical advice.</p>
     </div>`;

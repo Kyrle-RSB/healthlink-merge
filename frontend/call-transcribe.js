@@ -95,7 +95,7 @@ function stopLiveTranscription() {
 
 const DEMO_TRANSCRIPTS = {
   maria: [
-    { speaker: 'attendant', text: 'CarePoint intake, how can I help you today?', delay: 500 },
+    { speaker: 'attendant', text: 'SILA intake, how can I help you today?', delay: 500 },
     { speaker: 'patient', text: "Hi, I've been having stomach pain for about 3 weeks now. It won't go away, especially after eating.", delay: 2000 },
     { speaker: 'attendant', text: 'I\'m sorry to hear that. Can you tell me more about the pain? Where exactly is it?', delay: 2500 },
     { speaker: 'patient', text: "It's mostly in my upper stomach area. No fever, no vomiting. Just constant pain.", delay: 2000 },
@@ -103,7 +103,7 @@ const DEMO_TRANSCRIPTS = {
     { speaker: 'patient', text: "No, I just moved here from the Philippines 2 months ago. I don't have a doctor and my insurance hasn't started yet.", delay: 2500 },
   ],
   tyler: [
-    { speaker: 'attendant', text: 'CarePoint intake, how can I help you?', delay: 500 },
+    { speaker: 'attendant', text: 'SILA intake, how can I help you?', delay: 500 },
     { speaker: 'patient', text: "My heart is racing really fast and I can't breathe properly. I feel like something terrible is about to happen.", delay: 2000 },
     { speaker: 'attendant', text: 'I understand. Are you having any chest pain or arm numbness right now?', delay: 2500 },
     { speaker: 'patient', text: "No chest pain. I've had panic attacks before but this one feels really bad. I'm so scared.", delay: 2000 },
@@ -111,7 +111,7 @@ const DEMO_TRANSCRIPTS = {
     { speaker: 'patient', text: "I was prescribed Sertraline but I can't afford to see a psychiatrist. The ER told me to follow up with a doctor I don't have.", delay: 2500 },
   ],
   robert: [
-    { speaker: 'attendant', text: 'CarePoint intake, how can I help you today?', delay: 500 },
+    { speaker: 'attendant', text: 'SILA intake, how can I help you today?', delay: 500 },
     { speaker: 'patient', text: "I have numbness and tingling in both feet. It's been getting worse over the past few weeks.", delay: 2000 },
     { speaker: 'attendant', text: 'That must be concerning. Do you have any medical conditions I should know about?', delay: 2500 },
     { speaker: 'patient', text: "I have type 2 diabetes. My last A1C was over 8. I haven't been able to see a doctor since mine retired over a year ago.", delay: 2500 },
@@ -120,7 +120,7 @@ const DEMO_TRANSCRIPTS = {
   ],
   // ---- SILA Scenarios ----
   margaret: [
-    { speaker: 'attendant', text: 'CarePoint intake, how can I help you?', delay: 500 },
+    { speaker: 'attendant', text: 'SILA intake, how can I help you?', delay: 500 },
     { speaker: 'patient', text: "I'm having severe chest pain. It started about 20 minutes ago. Feels like pressure spreading to my left arm.", delay: 2000 },
     { speaker: 'attendant', text: 'I need to ask some quick questions. Are you having difficulty breathing?', delay: 2000 },
     { speaker: 'patient', text: "A little. I'm also sweating and feel nauseous. The pain is about 8 out of 10.", delay: 2000 },
@@ -128,7 +128,7 @@ const DEMO_TRANSCRIPTS = {
     { speaker: 'patient', text: "I have high blood pressure and diabetes. I take Metoprolol, Lisinopril, and Metformin.", delay: 2500 },
   ],
   jose: [
-    { speaker: 'attendant', text: 'CarePoint intake, how can I help you?', delay: 500 },
+    { speaker: 'attendant', text: 'SILA intake, how can I help you?', delay: 500 },
     { speaker: 'patient', text: "I twisted my ankle really badly playing soccer. It swelled up right away and I can't walk on it.", delay: 2000 },
     { speaker: 'attendant', text: 'Did you hear any popping or snapping when it happened?', delay: 2000 },
     { speaker: 'patient', text: "Yeah, there was a pop. It's turning purple now and the pain is about a 7.", delay: 2000 },
@@ -136,7 +136,7 @@ const DEMO_TRANSCRIPTS = {
     { speaker: 'patient', text: "Barely. It hurts too much. I need to get this looked at.", delay: 2000 },
   ],
   tiffany: [
-    { speaker: 'attendant', text: 'CarePoint intake, how can I help you today?', delay: 500 },
+    { speaker: 'attendant', text: 'SILA intake, how can I help you today?', delay: 500 },
     { speaker: 'patient', text: "I've had sharp pain in my lower right side since last night. It keeps getting worse.", delay: 2000 },
     { speaker: 'attendant', text: 'On a scale of 1 to 10, how would you rate the pain?', delay: 2000 },
     { speaker: 'patient', text: "About a 6, but it goes up when I move. I've also been nauseous and had a fever this morning.", delay: 2500 },
@@ -144,7 +144,7 @@ const DEMO_TRANSCRIPTS = {
     { speaker: 'patient', text: "I haven't wanted to eat. The pain started near my belly button and moved to the right side.", delay: 2500 },
   ],
   peter: [
-    { speaker: 'attendant', text: 'CarePoint intake, how can I help you?', delay: 500 },
+    { speaker: 'attendant', text: 'SILA intake, how can I help you?', delay: 500 },
     { speaker: 'patient', text: "I've been getting bad headaches almost every day for the past two weeks. OTC painkillers aren't working.", delay: 2000 },
     { speaker: 'attendant', text: 'Are you experiencing any vision changes, neck stiffness, or sensitivity to light?', delay: 2500 },
     { speaker: 'patient', text: "No, none of that. They're throbbing headaches, usually worse in the afternoon.", delay: 2000 },
@@ -152,7 +152,7 @@ const DEMO_TRANSCRIPTS = {
     { speaker: 'patient', text: "Not yet. I don't have a family doctor. I was hoping you could point me in the right direction.", delay: 2500 },
   ],
   anna: [
-    { speaker: 'attendant', text: 'CarePoint intake, how can I help you?', delay: 500 },
+    { speaker: 'attendant', text: 'SILA intake, how can I help you?', delay: 500 },
     { speaker: 'patient', text: "I've been having terrible allergies. Itchy eyes, constant sneezing, runny nose. It started with pollen season.", delay: 2000 },
     { speaker: 'attendant', text: 'Are you having any difficulty breathing or swelling?', delay: 2000 },
     { speaker: 'patient', text: "No, nothing like that. Just really uncomfortable. I've tried regular antihistamines but they don't help much.", delay: 2500 },
@@ -160,7 +160,7 @@ const DEMO_TRANSCRIPTS = {
     { speaker: 'patient', text: "No, just over-the-counter stuff. A pharmacist might be able to help, right?", delay: 2000 },
   ],
   lee: [
-    { speaker: 'attendant', text: 'CarePoint intake, how can I help you today?', delay: 500 },
+    { speaker: 'attendant', text: 'SILA intake, how can I help you today?', delay: 500 },
     { speaker: 'patient', text: "I've had a cold for about 4 days. Runny nose, mild sore throat, and a cough. No fever though.", delay: 2000 },
     { speaker: 'attendant', text: 'Are your symptoms getting worse or staying about the same?', delay: 2000 },
     { speaker: 'patient', text: "About the same. Just wanted to know if I should see a doctor or if there's something I can do at home.", delay: 2500 },

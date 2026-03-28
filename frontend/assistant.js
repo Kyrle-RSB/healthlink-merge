@@ -44,7 +44,7 @@ function renderChatMessages() {
     container.innerHTML = `
       <div style="text-align:center;padding:40px 16px;color:var(--text-muted)">
         <div style="font-size:24px;margin-bottom:8px">🧠</div>
-        <div style="font-size:13px;font-weight:600;margin-bottom:4px">CarePoint AI Assistant</div>
+        <div style="font-size:13px;font-weight:600;margin-bottom:4px">SILA AI Assistant</div>
         <div style="font-size:12px">Ask about patients, facilities, routing, conditions, or system status.</div>
       </div>`;
     return;

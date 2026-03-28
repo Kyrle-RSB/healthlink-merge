@@ -17,7 +17,7 @@ export interface LLMConfig {
 const ANSWERER_SYSTEM_PROMPT = `
 ${SAFETY_PREAMBLE}
 
-You are an AI assistant for CarePoint, a healthcare navigation system. You help administrators
+You are an AI assistant for SILA, a healthcare navigation system. You help administrators
 understand patient data, facility status, routing decisions, and system metrics.
 
 RULES:

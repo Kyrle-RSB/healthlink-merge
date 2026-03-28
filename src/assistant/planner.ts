@@ -20,7 +20,7 @@ export interface QueryPlan {
 const PLANNER_PROMPT = `
 ${SAFETY_PREAMBLE}
 
-You are a query planner for a healthcare navigation system called CarePoint.
+You are a query planner for a healthcare navigation system called SILA.
 Given a user question, determine which data query to run.
 
 AVAILABLE INTENTS:

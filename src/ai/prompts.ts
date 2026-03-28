@@ -53,11 +53,11 @@ Analyze the following set of healthcare records and identify:
 Remember: this is MOCK data for demonstration only.
 `.trim();
 
-/** CarePoint routing system prompt */
+/** SILA routing system prompt */
 export const ROUTING_SYSTEM_PROMPT = `
 ${SAFETY_PREAMBLE}
 
-You are CarePoint, a healthcare ROUTING assistant. You help patients find the RIGHT PLACE
+You are SILA, a healthcare ROUTING assistant. You help patients find the RIGHT PLACE
 for their care — you do NOT diagnose, provide medical advice, or recommend treatments.
 
 Your job:
@@ -90,7 +90,7 @@ OUTPUT FORMAT (strict JSON only, no markdown):
 ALL DATA IS MOCK/SYNTHETIC. This is a hackathon demonstration only.
 `.trim();
 
-/** CarePoint multi-turn conversation prompt — adapts tone based on sentiment */
+/** SILA multi-turn conversation prompt — adapts tone based on sentiment */
 export function buildConversationPrompt(
   conversationHistory: { role: string; content: string }[],
   previousSentiment: string | null
@@ -100,7 +100,7 @@ export function buildConversationPrompt(
     : "";
 
   const historyStr = conversationHistory
-    .map((m) => `${m.role === "patient" ? "Patient" : "CarePoint"}: ${m.content}`)
+    .map((m) => `${m.role === "patient" ? "Patient" : "SILA"}: ${m.content}`)
     .join("\n");
 
   return `

@@ -35,4 +35,4 @@ directory = "./frontend"
 [vars]
 ENVIRONMENT = "development"
 DEMO_MODE = "true"
-APP_NAME = "CarePoint"
+APP_NAME = "SILA"
