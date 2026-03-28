@@ -86,6 +86,8 @@ html,body{height:100%;overflow:hidden;font-family:'Inter',system-ui,sans-serif;b
 .cc-gauge{flex-shrink:0}
 .cc-timer{font-size:12px;color:var(--text-dim);font-variant-numeric:tabular-nums}
 .cc-triage{font-size:11px;font-weight:600;padding:2px 8px;border-radius:6px;color:#fff;white-space:nowrap}
+.cc-ai-summary{font-size:11px;color:var(--text-dim);font-style:italic;margin-bottom:4px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;line-height:1.4}
+.cc-resolution{font-size:11px;color:var(--text-dim);margin-bottom:8px;opacity:.7}
 
 /* ========== SPLIT VIEW ========== */
 #split{display:none;padding:56px 0 52px;height:100vh}
@@ -246,6 +248,8 @@ const PATIENTS = [
     id:1, name:"Margaret Johnson", initials:"MJ", age:51, sex:"F",
     healthCard:"9876 543 210", complaint:"Chest pain radiating to left arm with shortness of breath",
     triageLevel:"ER Level 1", triageScore:95, triageColor:"#ef4444",
+    estimatedResolution:15,
+    aiSummary:"Cardiac emergency — elevated troponin, chest pain radiating to left arm",
     routing:"Royal Jubilee Hospital - Emergency",
     conditions:["Hypertension","Hyperlipidemia","Type 2 Diabetes","Coronary Artery Disease"],
     meds:["Metoprolol 50mg BID","Lisinopril 20mg daily","Atorvastatin 40mg daily","Aspirin 81mg daily","Metformin 1000mg BID"],
@@ -273,6 +277,8 @@ const PATIENTS = [
     id:2, name:"Jose Ramirez", initials:"JR", age:27, sex:"M",
     healthCard:"1234 567 890", complaint:"Right ankle injury during recreational soccer - possible fracture",
     triageLevel:"ER Override Level 3", triageScore:65, triageColor:"#f59e0b",
+    estimatedResolution:60,
+    aiSummary:"Musculoskeletal injury — possible fracture, patient requests ER",
     routing:"Patient requested ER - Royal Jubilee",
     conditions:[],meds:[],allergies:["None known"],
     vitals:{hr:88,bp:"118/76",temp:"36.8",rr:16,o2:99,pain:7},
@@ -297,6 +303,8 @@ const PATIENTS = [
     id:3, name:"Tiffany Liu", initials:"TL", age:62, sex:"F",
     healthCard:"5555 678 901", complaint:"Persistent upper abdominal pain with nausea for 3 days",
     triageLevel:"UPCC Level 3", triageScore:72, triageColor:"#a855f7",
+    estimatedResolution:60,
+    aiSummary:"GI assessment needed — persistent abdominal pain, elevated lipase, NSAID use",
     routing:"Island Health UPCC Downtown",
     conditions:["GERD","Osteoarthritis"],
     meds:["Omeprazole 20mg daily","Ibuprofen 400mg PRN"],
@@ -323,6 +331,8 @@ const PATIENTS = [
     id:4, name:"Peter Callahan", initials:"PC", age:44, sex:"M",
     healthCard:"7777 888 999", complaint:"Recurring tension headaches over the past month",
     triageLevel:"Family Doctor Level 4", triageScore:35, triageColor:"#3b82f6",
+    estimatedResolution:120,
+    aiSummary:"Tension headache escalation — daily occurrence, work-related stress",
     routing:"Oak Bay Medical Centre - Family Practice",
     conditions:["Tension-type headaches"],meds:[],allergies:["None known"],
     vitals:{hr:76,bp:"128/84",temp:"36.9",rr:14,o2:99,pain:5},
@@ -347,6 +357,8 @@ const PATIENTS = [
     id:5, name:"Anna Hall", initials:"AH", age:24, sex:"F",
     healthCard:"3333 444 555", complaint:"Seasonal allergy symptoms - sneezing, itchy eyes, runny nose",
     triageLevel:"Pharmacy Level 5", triageScore:20, triageColor:"#10b981",
+    estimatedResolution:240,
+    aiSummary:"Allergic rhinitis — seasonal, OTC antihistamine failure",
     routing:"Parkside Pharmacy - OTC Recommendation",
     conditions:["Seasonal allergic rhinitis"],meds:[],
     allergies:["Sulfonamide antibiotics"],
@@ -372,6 +384,8 @@ const PATIENTS = [
     id:6, name:"Lee Jackson", initials:"LJ", age:18, sex:"M",
     healthCard:"6666 777 888", complaint:"Cold symptoms for 2 days - sore throat, congestion, mild fever",
     triageLevel:"8-1-1 Level 5", triageScore:25, triageColor:"#06b6d4",
+    estimatedResolution:240,
+    aiSummary:"Viral URI — mild symptoms, self-care appropriate",
     routing:"8-1-1 BC HealthLink - Self-Care Guidance",
     conditions:[],meds:[],allergies:["None known"],
     vitals:{hr:78,bp:"118/74",temp:"38.2",rr:16,o2:99,pain:3},
@@ -524,14 +538,34 @@ function largeGaugeSVG(score, color) {
   </svg>`;
 }
 
+// ===== SORT PATIENTS BY URGENCY =====
+function getSortedPatients() {
+  return [...PATIENTS].sort((a, b) => {
+    if (b.triageScore !== a.triageScore) return b.triageScore - a.triageScore;
+    const csA = callStates[a.id] || { duration: 0 };
+    const csB = callStates[b.id] || { duration: 0 };
+    return csB.duration - csA.duration;
+  });
+}
+
+function reorderGrid() {
+  const grid = document.getElementById('grid');
+  const sorted = getSortedPatients();
+  sorted.forEach(p => {
+    const card = document.getElementById('card-' + p.id);
+    if (card) grid.appendChild(card);
+  });
+}
+
 // ===== RENDER CALL CARDS =====
 let gridBuilt = false;
 function renderGrid() {
   const grid = document.getElementById('grid');
   if (!gridBuilt) {
-    // Initial full build with animations
+    // Initial full build with animations, sorted by urgency
     grid.innerHTML = '';
-    PATIENTS.forEach((p, i) => {
+    const sorted = getSortedPatients();
+    sorted.forEach((p, i) => {
       const card = document.createElement('div');
       card.id = 'card-' + p.id;
       card.className = 'call-card';
@@ -547,6 +581,8 @@ function renderGrid() {
           <span class="cc-badge" id="badge-${p.id}"></span>
         </div>
         <div class="cc-complaint">${p.complaint}</div>
+        <div class="cc-ai-summary">${p.aiSummary}</div>
+        <div class="cc-resolution">Est. ~${p.estimatedResolution} min</div>
         <div class="cc-bottom">
           <span class="cc-gauge" id="gauge-${p.id}"></span>
           <span class="cc-timer" id="timer-${p.id}">--:--</span>
@@ -579,6 +615,8 @@ function renderGrid() {
     const timer = document.getElementById('timer-' + p.id);
     if (timer) timer.textContent = cs.started ? formatDuration(cs.duration) : '--:--';
   });
+  // Reorder cards by urgency
+  reorderGrid();
 }
 
 // ===== RENDER BOTTOM BAR =====

@@ -722,25 +722,24 @@ async function saveZoomConfig() {
   const sdkSecret = document.getElementById('int-zoom-sdk-secret').value.trim();
   const active = document.getElementById('int-zoom-active').checked;
 
-  if (!account || !client) { alert('Account ID and Client ID are required'); return; }
+  if (!account || !client || !secret) { alert('Account ID, Client ID, and Client Secret are required'); return; }
 
-  const config = { account_id: account, client_id: client };
-  if (secret) config.client_secret = secret;
-  if (sdkKey) config.sdk_key = sdkKey;
-  if (sdkSecret) config.sdk_secret = sdkSecret;
+  const payload = { accountId: account, clientId: client, clientSecret: secret };
+  if (sdkKey) payload.sdkKey = sdkKey;
+  if (sdkSecret) payload.sdkSecret = sdkSecret;
 
   // Try the dedicated zoom config endpoint first, fall back to generic
   let res;
   try {
     res = await api('/api/zoom/config', {
       method: 'PUT',
-      body: JSON.stringify({ config, is_active: active ? 1 : 0 }),
+      body: JSON.stringify(payload),
     });
   } catch (e) {
     // Fall back to generic integrations endpoint
     res = await api('/api/integrations/zoom', {
       method: 'PUT',
-      body: JSON.stringify({ config, is_active: active ? 1 : 0 }),
+      body: JSON.stringify({ config: payload, is_active: active ? 1 : 0 }),
     });
   }
 

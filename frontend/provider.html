@@ -1,0 +1,1281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CarePoint Provider — Provider Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+--bg:#0F172A;--card:#1E293B;--border:#334155;--accent:#38BDF8;
+--text:#F1F5F9;--text-dim:#94A3B8;--yellow:#FCBA19;
+--red:#EF4444;--orange:#F97316;--amber:#EAB308;--green:#22C55E;--blue:#3B82F6;--purple:#A855F7;--cyan:#06B6D4;--teal:#10B981;
+}
+html,body{height:100%;overflow:hidden;font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text)}
+
+/* ========== ANIMATIONS ========== */
+@keyframes pulse-glow{0%,100%{box-shadow:0 0 5px rgba(34,197,94,.3)}50%{box-shadow:0 0 20px rgba(34,197,94,.6)}}
+@keyframes pulse-soft{0%,100%{opacity:1}50%{opacity:.5}}
+@keyframes fade-in{from{opacity:0}to{opacity:1}}
+@keyframes slide-up{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+@keyframes slide-in-right{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:translateX(0)}}
+@keyframes gradient-shift{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes pulse-ring{0%{transform:scale(1);opacity:.6}100%{transform:scale(1.4);opacity:0}}
+@keyframes bounce-in{0%{opacity:0;transform:scale(.3)}50%{transform:scale(1.05)}70%{transform:scale(.95)}100%{opacity:1;transform:scale(1)}}
+@keyframes typing-dots{0%,80%,100%{opacity:.3}40%{opacity:1}}
+@keyframes urgent-pulse{0%,100%{border-left-color:var(--red)}50%{border-left-color:transparent}}
+@keyframes checkmark{from{transform:scale(0) rotate(-45deg)}to{transform:scale(1) rotate(0deg)}}
+@keyframes success-pop{0%{transform:scale(0);opacity:0}50%{transform:scale(1.15)}100%{transform:scale(1);opacity:1}}
+
+/* ========== HEADER ========== */
+#header{position:fixed;top:0;left:0;right:0;z-index:100;height:56px;background:rgba(15,23,42,.8);backdrop-filter:blur(16px);border-bottom:1px solid var(--border);padding:0 20px;display:flex;align-items:center;justify-content:space-between}
+#header::after{content:'';position:absolute;bottom:-2px;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--accent),var(--purple),var(--teal));background-size:200% 100%;animation:gradient-shift 4s linear infinite}
+.header-left{display:flex;align-items:center;gap:12px}
+.header-logo{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,var(--teal),var(--accent));display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:#fff}
+.header-title{font-size:16px;font-weight:700;color:var(--text)}
+.header-sub{font-size:12px;color:var(--text-dim);margin-left:8px;padding-left:8px;border-left:1px solid var(--border)}
+.header-right{display:flex;align-items:center;gap:16px}
+.status-connected{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--green);font-weight:500}
+.status-dot{width:8px;height:8px;border-radius:50%;background:var(--green);animation:pulse-soft 2s ease-in-out infinite}
+.header-clock{font-size:13px;color:var(--text-dim);font-variant-numeric:tabular-nums}
+
+/* ========== LAYOUT ========== */
+#app{display:flex;height:100vh;padding-top:56px;padding-bottom:44px}
+
+/* ========== SIDEBAR ========== */
+#sidebar{width:240px;background:rgba(15,23,42,.6);backdrop-filter:blur(12px);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;transition:width .3s,opacity .3s;overflow:hidden}
+#sidebar.collapsed{width:0;opacity:0;border:none}
+.sidebar-toggle{position:fixed;top:64px;left:8px;z-index:101;width:28px;height:28px;border-radius:6px;background:var(--card);border:1px solid var(--border);color:var(--text-dim);cursor:pointer;display:none;align-items:center;justify-content:center;font-size:14px}
+.sidebar-nav{flex:1;padding:12px 0}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 20px;font-size:13px;font-weight:500;color:var(--text-dim);cursor:pointer;transition:all .2s;border-left:3px solid transparent}
+.nav-item:hover{color:var(--text);background:rgba(255,255,255,.03)}
+.nav-item.active{color:var(--accent);background:rgba(56,189,248,.06);border-left-color:var(--accent)}
+.nav-icon{width:20px;text-align:center;font-size:16px}
+.nav-badge{margin-left:auto;background:var(--accent);color:#0F172A;font-size:10px;font-weight:700;padding:1px 7px;border-radius:10px;min-width:20px;text-align:center}
+.sidebar-footer{padding:12px 16px;border-top:1px solid var(--border);display:flex;flex-direction:column;gap:6px}
+.sidebar-link{display:flex;align-items:center;gap:8px;padding:8px 12px;font-size:12px;color:var(--text-dim);text-decoration:none;border-radius:8px;transition:all .2s}
+.sidebar-link:hover{color:var(--text);background:rgba(255,255,255,.05)}
+
+/* ========== MAIN CONTENT ========== */
+#main{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px}
+
+/* ========== QUEUE VIEW ========== */
+.queue-header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px}
+.queue-title{font-size:20px;font-weight:700;display:flex;align-items:center;gap:10px}
+.queue-count{background:var(--accent);color:#0F172A;font-size:12px;font-weight:700;padding:2px 10px;border-radius:12px}
+.sort-controls{display:flex;gap:6px}
+.sort-btn{background:var(--card);border:1px solid var(--border);color:var(--text-dim);padding:6px 14px;border-radius:8px;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;transition:all .2s}
+.sort-btn:hover{border-color:var(--accent);color:var(--text)}
+.sort-btn.active{background:rgba(56,189,248,.12);border-color:var(--accent);color:var(--accent)}
+
+/* ========== PATIENT CARD (Queue) ========== */
+.patient-card{background:var(--card);border:1px solid var(--border);border-left:4px solid var(--border);border-radius:12px;padding:14px 16px;cursor:pointer;transition:all .3s;animation:slide-up .5s ease-out backwards;display:flex;align-items:center;gap:14px}
+.patient-card:hover{border-color:var(--accent);transform:translateY(-1px);box-shadow:0 6px 20px rgba(0,0,0,.25)}
+.patient-card.urgent{animation:slide-up .5s ease-out backwards, urgent-pulse 2s ease-in-out infinite}
+.pc-avatar{width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;color:#fff;flex-shrink:0}
+.pc-middle{flex:1;min-width:0}
+.pc-name-row{display:flex;align-items:center;gap:8px;margin-bottom:3px}
+.pc-name{font-size:14px;font-weight:600}
+.pc-demo{font-size:11px;color:var(--text-dim)}
+.pc-complaint{font-size:12px;color:var(--text-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:4px}
+.pc-meta{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.pc-triage-badge{font-size:10px;font-weight:600;padding:2px 8px;border-radius:6px;color:#fff}
+.pc-wait{font-size:11px;color:var(--text-dim);font-variant-numeric:tabular-nums}
+.pc-right{display:flex;align-items:center;gap:14px;flex-shrink:0}
+.pc-gauge{position:relative;width:44px;height:44px}
+.pc-gauge-text{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700}
+.pc-accept{background:var(--green);color:#fff;border:none;padding:8px 18px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .2s}
+.pc-accept:hover{transform:scale(1.05);box-shadow:0 4px 15px rgba(34,197,94,.3)}
+.pc-ai-strip{width:100%;margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,.05);font-size:11px;color:var(--text-dim);font-style:italic;display:flex;justify-content:space-between;align-items:center}
+.pc-confidence{font-style:normal;font-weight:600;color:var(--accent);font-size:10px}
+/* card wrapper so ai strip is below the flex row */
+.patient-card-wrap{background:var(--card);border:1px solid var(--border);border-left:4px solid var(--border);border-radius:12px;padding:14px 16px;cursor:pointer;transition:all .3s;animation:slide-up .5s ease-out backwards}
+.patient-card-wrap:hover{border-color:var(--accent);transform:translateY(-1px);box-shadow:0 6px 20px rgba(0,0,0,.25)}
+.patient-card-wrap .pc-row{display:flex;align-items:center;gap:14px}
+
+/* ========== ACTIVE CONVERSATION VIEW ========== */
+#convo-view{display:none;flex:1;overflow:hidden}
+#convo-view.visible{display:flex;gap:12px}
+.convo-left{flex:2;display:flex;flex-direction:column;gap:10px;min-width:0;overflow:hidden}
+.convo-right{width:320px;flex-shrink:0;overflow-y:auto;display:flex;flex-direction:column;gap:10px}
+@media(max-width:1100px){.convo-right{width:280px}}
+@media(max-width:900px){#convo-view.visible{flex-direction:column}.convo-right{width:100%}}
+
+/* Patient info bar */
+.patient-bar{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
+.pb-left{display:flex;align-items:center;gap:12px}
+.pb-name{font-size:16px;font-weight:700}
+.pb-details{display:flex;gap:10px;font-size:12px;color:var(--text-dim)}
+.pb-triage{font-size:11px;font-weight:600;padding:2px 10px;border-radius:6px;color:#fff}
+.back-btn{background:rgba(56,189,248,.15);color:var(--accent);border:none;padding:6px 14px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .2s}
+.back-btn:hover{background:rgba(56,189,248,.3)}
+
+/* Verification checklist */
+.verify-bar{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px 14px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.verify-item{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--text-dim);transition:color .3s}
+.verify-item.done{color:var(--green)}
+.verify-check{width:16px;height:16px;border-radius:4px;border:1.5px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:10px;transition:all .3s}
+.verify-item.done .verify-check{background:var(--green);border-color:var(--green);color:#fff}
+
+/* Chat area */
+.chat-box{background:var(--card);border:1px solid var(--border);border-radius:12px;flex:1;display:flex;flex-direction:column;overflow:hidden;min-height:0}
+.chat-header{padding:10px 14px;border-bottom:1px solid var(--border);font-size:13px;font-weight:600;display:flex;align-items:center;gap:6px}
+.chat-body{flex:1;overflow-y:auto;padding:12px 14px;display:flex;flex-direction:column;gap:8px}
+.msg{max-width:80%;padding:10px 14px;border-radius:14px;font-size:13px;line-height:1.5;animation:slide-up .3s ease-out}
+.msg-provider{background:rgba(56,189,248,.15);border:1px solid rgba(56,189,248,.2);align-self:flex-end;border-bottom-right-radius:4px}
+.msg-patient{background:rgba(148,163,184,.1);border:1px solid rgba(148,163,184,.15);align-self:flex-start;border-bottom-left-radius:4px}
+.msg-system{background:rgba(168,85,247,.08);border:1px solid rgba(168,85,247,.15);align-self:center;text-align:center;font-size:11px;color:var(--text-dim);max-width:90%}
+.msg-label{font-size:10px;font-weight:600;margin-bottom:2px}
+.msg-provider .msg-label{color:var(--accent)}
+.msg-patient .msg-label{color:var(--text-dim)}
+.msg-system .msg-label{color:var(--purple)}
+.highlight{color:var(--cyan);font-weight:600}
+.typing-indicator{align-self:flex-start;padding:10px 16px;background:rgba(148,163,184,.1);border:1px solid rgba(148,163,184,.1);border-radius:14px;border-bottom-left-radius:4px;display:flex;gap:4px}
+.typing-dot{width:6px;height:6px;border-radius:50%;background:var(--text-dim)}
+.typing-dot:nth-child(1){animation:typing-dots 1.4s ease-in-out infinite}
+.typing-dot:nth-child(2){animation:typing-dots 1.4s ease-in-out .2s infinite}
+.typing-dot:nth-child(3){animation:typing-dots 1.4s ease-in-out .4s infinite}
+
+/* Input area */
+.chat-input-area{border-top:1px solid var(--border);padding:10px 14px}
+.chat-input-row{display:flex;gap:8px}
+.chat-input{flex:1;background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:10px;padding:10px 14px;color:var(--text);font-size:13px;font-family:inherit;outline:none;transition:border-color .2s}
+.chat-input:focus{border-color:var(--accent)}
+.chat-send{background:var(--accent);color:#0F172A;border:none;padding:10px 20px;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .2s}
+.chat-send:hover{transform:scale(1.03);box-shadow:0 3px 12px rgba(56,189,248,.3)}
+
+/* AI suggestion pills */
+.ai-pills{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.ai-pill{background:rgba(168,85,247,.1);border:1px solid rgba(168,85,247,.25);color:var(--purple);padding:5px 12px;border-radius:20px;font-size:11px;cursor:pointer;transition:all .2s;font-family:inherit;white-space:nowrap}
+.ai-pill:hover{background:rgba(168,85,247,.2);border-color:var(--purple);transform:translateY(-1px)}
+
+/* Escalation bar */
+.escalation-bar{display:flex;gap:8px;flex-wrap:wrap}
+.esc-btn{background:var(--card);border:1px solid var(--border);color:var(--text);padding:8px 14px;border-radius:8px;font-size:12px;cursor:pointer;font-family:inherit;transition:all .2s;display:flex;align-items:center;gap:6px}
+.esc-btn:hover{border-color:var(--accent);background:rgba(56,189,248,.06)}
+
+/* ========== RIGHT PANEL ========== */
+/* Accordion */
+.accordion{background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden}
+.acc-section{border-bottom:1px solid var(--border)}
+.acc-section:last-child{border-bottom:none}
+.acc-header{padding:8px 12px;font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:space-between;transition:background .2s}
+.acc-header:hover{background:rgba(255,255,255,.03)}
+.acc-body{padding:8px 12px;font-size:11px;color:var(--text-dim);line-height:1.6;display:none}
+.acc-section.open .acc-body{display:block}
+.acc-arrow{transition:transform .2s;font-size:10px}
+.acc-section.open .acc-arrow{transform:rotate(90deg)}
+
+/* Triage gauge (right panel) */
+.triage-panel{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;display:flex;align-items:center;gap:14px}
+.triage-gauge-lg{position:relative;width:80px;height:80px;flex-shrink:0}
+.triage-gauge-lg-text{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.triage-gauge-lg-score{font-size:22px;font-weight:800}
+.triage-gauge-lg-label{font-size:8px;color:var(--text-dim)}
+.triage-info{flex:1}
+.triage-level-badge{font-size:12px;font-weight:600;padding:3px 10px;border-radius:6px;color:#fff;display:inline-block;margin-bottom:6px}
+.triage-rec{font-size:11px;color:var(--text-dim);line-height:1.4}
+
+/* Map */
+.map-panel{background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden;height:180px;position:relative}
+#provider-map{width:100%;height:100%}
+.leaflet-tile-pane{filter:invert(1) hue-rotate(200deg) saturate(.8) brightness(.9)}
+.leaflet-control-attribution{display:none!important}
+.leaflet-control-zoom{border:1px solid var(--border)!important}
+.leaflet-control-zoom a{background:var(--card)!important;color:var(--text)!important;border-color:var(--border)!important}
+
+/* Facility cards */
+.facility-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px;transition:all .2s}
+.facility-card.recommended{border-color:var(--green);box-shadow:0 0 10px rgba(34,197,94,.1)}
+.facility-card-label{font-size:9px;font-weight:600;color:var(--green);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
+.fc-name{font-size:13px;font-weight:600;margin-bottom:2px}
+.fc-type{font-size:10px;color:var(--text-dim);margin-bottom:6px}
+.fc-meta{display:flex;gap:12px;font-size:11px;color:var(--text-dim);margin-bottom:8px}
+.fc-meta span{display:flex;align-items:center;gap:4px}
+.route-btn{background:var(--green);color:#fff;border:none;padding:7px 16px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .2s;width:100%}
+.route-btn:hover{transform:scale(1.02);box-shadow:0 4px 15px rgba(34,197,94,.25)}
+.alt-facility{background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:8px;padding:8px 10px;display:flex;align-items:center;justify-content:space-between}
+.alt-facility .fc-name{font-size:11px;margin:0}
+.alt-facility .fc-meta{font-size:10px;margin:0;gap:8px}
+
+/* ========== BOTTOM STATUS BAR ========== */
+#bottombar{position:fixed;bottom:0;left:0;right:0;z-index:100;height:44px;background:rgba(15,23,42,.9);backdrop-filter:blur(12px);border-top:1px solid var(--border);padding:0 20px;display:flex;align-items:center;justify-content:space-between}
+.bb-stats{display:flex;gap:20px}
+.bb-stat{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-dim)}
+.bb-stat-value{font-weight:700;color:var(--text);font-variant-numeric:tabular-nums}
+.bb-stat-dot{width:8px;height:8px;border-radius:50%}
+.bb-active-indicators{display:flex;gap:6px;align-items:center}
+.bb-active-dot{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff;cursor:pointer;transition:all .2s}
+.bb-active-dot:hover{transform:scale(1.15)}
+
+/* ========== MODAL ========== */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);z-index:200;display:flex;align-items:center;justify-content:center;animation:fade-in .2s}
+.modal{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:28px;max-width:440px;width:90%;animation:bounce-in .4s ease-out}
+.modal-icon{font-size:48px;text-align:center;margin-bottom:12px;animation:success-pop .5s ease-out}
+.modal-title{font-size:18px;font-weight:700;text-align:center;margin-bottom:6px}
+.modal-text{font-size:13px;color:var(--text-dim);text-align:center;line-height:1.6;margin-bottom:20px}
+.modal-details{background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:20px;font-size:12px;line-height:1.8;color:var(--text-dim)}
+.modal-details strong{color:var(--text)}
+.modal-btn{background:var(--accent);color:#0F172A;border:none;padding:10px 24px;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;width:100%;transition:all .2s}
+.modal-btn:hover{box-shadow:0 4px 15px rgba(56,189,248,.3)}
+
+/* ========== COMPLETED VIEW ========== */
+.completed-card{background:var(--card);border:1px solid var(--border);border-left:4px solid var(--green);border-radius:12px;padding:14px 16px;display:flex;align-items:center;gap:14px;animation:slide-up .4s ease-out}
+.completed-card .pc-name{color:var(--text-dim)}
+.completed-badge{font-size:10px;font-weight:600;padding:2px 8px;border-radius:6px;background:rgba(34,197,94,.15);color:var(--green)}
+
+/* ========== SCROLLBAR ========== */
+::-webkit-scrollbar{width:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:var(--text-dim)}
+
+/* ========== RESPONSIVE ========== */
+@media(max-width:768px){
+  #sidebar{width:0;opacity:0;border:none;position:fixed;z-index:99;top:56px;bottom:44px;left:0}
+  #sidebar.open{width:240px;opacity:1;border-right:1px solid var(--border)}
+  .sidebar-toggle{display:flex}
+  .convo-right{display:none}
+}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div id="header">
+  <div class="header-left">
+    <div class="header-logo">CP</div>
+    <span class="header-title">CarePoint Provider</span>
+    <span class="header-sub">Provider Dashboard</span>
+  </div>
+  <div class="header-right">
+    <div class="status-connected"><div class="status-dot"></div>Connected</div>
+    <div class="header-clock" id="clock"></div>
+  </div>
+</div>
+
+<!-- SIDEBAR TOGGLE (mobile) -->
+<button class="sidebar-toggle" id="sidebarToggle" onclick="toggleSidebar()">&#9776;</button>
+
+<!-- APP LAYOUT -->
+<div id="app">
+  <!-- SIDEBAR -->
+  <div id="sidebar">
+    <div class="sidebar-nav">
+      <div class="nav-item active" data-view="queue" onclick="switchView('queue')">
+        <span class="nav-icon">&#128203;</span> Queue <span class="nav-badge" id="queue-badge">0</span>
+      </div>
+      <div class="nav-item" data-view="active" onclick="switchView('active')">
+        <span class="nav-icon">&#128172;</span> Active Conversations <span class="nav-badge" id="active-badge" style="display:none">0</span>
+      </div>
+      <div class="nav-item" data-view="completed" onclick="switchView('completed')">
+        <span class="nav-icon">&#9989;</span> Completed <span class="nav-badge" id="completed-badge" style="display:none;background:var(--green)">0</span>
+      </div>
+    </div>
+    <div class="sidebar-footer">
+      <a href="/dashboard.html" class="sidebar-link">&#128200; Live Call Dashboard</a>
+      <a href="/admin.html" class="sidebar-link">&#9881;&#65039; Admin</a>
+    </div>
+  </div>
+
+  <!-- MAIN CONTENT -->
+  <div id="main">
+    <!-- Queue View (default) -->
+    <div id="queue-view">
+      <div class="queue-header">
+        <div class="queue-title">Patient Queue <span class="queue-count" id="queue-count">0</span></div>
+        <div class="sort-controls">
+          <span style="font-size:12px;color:var(--text-dim);margin-right:4px">Sort by:</span>
+          <button class="sort-btn active" data-sort="urgency" onclick="setSort('urgency')">Urgency</button>
+          <button class="sort-btn" data-sort="wait" onclick="setSort('wait')">Wait Time</button>
+          <button class="sort-btn" data-sort="triage" onclick="setSort('triage')">Triage Level</button>
+        </div>
+      </div>
+      <div id="queue-list"></div>
+    </div>
+
+    <!-- Active Conversations (list when no patient selected) -->
+    <div id="active-view" style="display:none">
+      <div class="queue-header">
+        <div class="queue-title">Active Conversations <span class="queue-count" id="active-count">0</span></div>
+      </div>
+      <div id="active-list"></div>
+    </div>
+
+    <!-- Completed View -->
+    <div id="completed-view" style="display:none">
+      <div class="queue-header">
+        <div class="queue-title">Completed Today <span class="queue-count" id="completed-count" style="background:var(--green)">0</span></div>
+      </div>
+      <div id="completed-list"></div>
+    </div>
+
+    <!-- Conversation View (replaces main when active) -->
+    <div id="convo-view">
+      <div class="convo-left" id="convo-left"></div>
+      <div class="convo-right" id="convo-right"></div>
+    </div>
+  </div>
+</div>
+
+<!-- BOTTOM BAR -->
+<div id="bottombar">
+  <div class="bb-stats">
+    <div class="bb-stat"><div class="bb-stat-dot" style="background:var(--amber)"></div> Queued: <span class="bb-stat-value" id="bb-queued">0</span></div>
+    <div class="bb-stat"><div class="bb-stat-dot" style="background:var(--accent)"></div> Active: <span class="bb-stat-value" id="bb-active">0</span></div>
+    <div class="bb-stat"><div class="bb-stat-dot" style="background:var(--green)"></div> Completed: <span class="bb-stat-value" id="bb-completed">0</span></div>
+  </div>
+  <div class="bb-active-indicators" id="bb-indicators"></div>
+</div>
+
+<script>
+// ===================================================================
+//  DATA
+// ===================================================================
+
+const PATIENTS = [
+  {
+    id:1, name:"Margaret Johnson", initials:"MJ", age:51, sex:"F",
+    healthCard:"9876 543 210", dob:"Mar 15, 1975",
+    complaint:"Chest pain radiating to left arm with shortness of breath",
+    triageLevel:"ER Level 1", triageScore:95, triageColor:"#EF4444",
+    routing:"Royal Jubilee Hospital - Emergency",
+    aiSummary:"High-acuity presentation with classic ACS symptoms; immediate ER routing recommended.",
+    confidence:97,
+    conditions:["Hypertension","Hyperlipidemia","Type 2 Diabetes","Coronary Artery Disease"],
+    meds:["Metoprolol 50mg BID","Lisinopril 20mg daily","Atorvastatin 40mg daily","Aspirin 81mg daily","Metformin 1000mg BID"],
+    allergies:["None known"],
+    vitals:{hr:92,bp:"156/95",temp:"37.1",rr:24,o2:94,pain:8},
+    labResults:["Troponin: 0.04 ng/mL (borderline)","CBC: WNL","BMP: Glucose 188 mg/dL","HbA1c: 7.2%"],
+    conversationTree:{
+      pain_scale:{question:"Can you describe your pain on a scale of 1 to 10?",response:"It's about an 8 right now. It comes and goes but when it hits, it's really intense, like someone is sitting on my chest.",followUp:["pain_location","pain_duration"]},
+      pain_location:{question:"Where exactly is the pain located?",response:"Center of my chest, and it radiates down my left arm. Sometimes I feel it in my jaw too.",followUp:["breathing","onset"]},
+      pain_duration:{question:"How long have you been experiencing this pain?",response:"It started about 30 minutes ago. It came on suddenly while I was watching TV.",followUp:["onset","previous_episodes"]},
+      breathing:{question:"Are you having any difficulty breathing?",response:"Yes, I feel short of breath. It's hard to take a deep breath, especially when the chest pain peaks.",followUp:["associated_symptoms","activity"]},
+      onset:{question:"What were you doing when the pain started?",response:"I was just sitting on the couch watching television. I hadn't been doing anything strenuous at all.",followUp:["previous_episodes","makes_worse"]},
+      associated_symptoms:{question:"Any other symptoms like nausea, sweating, or dizziness?",response:"Yes, I'm sweating profusely and I feel nauseous. A little lightheaded too. I'm really scared.",followUp:["medications","history"]},
+      medications:{question:"Have you taken all your medications today?",response:"I took my metoprolol and lisinopril this morning, but I haven't taken my aspirin yet today. Should I take it now?",followUp:["allergies_check","makes_better"]},
+      history:{question:"Can you tell me about your cardiac history?",response:"I was diagnosed with coronary artery disease two years ago. I also have high blood pressure and diabetes. My father had a heart attack at 55.",followUp:["medications","previous_episodes"]},
+      allergies_check:{question:"Do you have any allergies to medications?",response:"No known allergies. I've been on all my current medications for over a year without any problems.",followUp:["makes_worse","makes_better"]},
+      previous_episodes:{question:"Have you experienced anything like this before?",response:"I had some chest tightness a few months ago but it went away on its own. Nothing this severe though. This feels different - much worse.",followUp:["makes_worse","makes_better"]},
+      makes_worse:{question:"Does anything make the pain worse?",response:"Taking deep breaths makes it worse, and it got worse when I tried to stand up. Lying down doesn't help either.",followUp:["makes_better"]},
+      makes_better:{question:"Is there anything that helps relieve the pain?",response:"Nothing seems to help. I tried sitting up and leaning forward but it's still there. The nitroglycerin I had from before expired and I never refilled it.",followUp:[]}
+    }
+  },
+  {
+    id:2, name:"Jose Ramirez", initials:"JR", age:27, sex:"M",
+    healthCard:"1234 567 890", dob:"Jul 22, 1999",
+    complaint:"Right ankle injury during recreational soccer — possible fracture",
+    triageLevel:"ER Override Level 3", triageScore:65, triageColor:"#F97316",
+    routing:"Royal Jubilee Hospital - Emergency",
+    aiSummary:"Musculoskeletal injury with deformity concern; X-ray indicated. Patient preference ER override.",
+    confidence:88,
+    conditions:[],
+    meds:[],
+    allergies:["None known"],
+    vitals:{hr:88,bp:"118/76",temp:"36.8",rr:16,o2:99,pain:7},
+    labResults:["No recent labs on file"],
+    conversationTree:{
+      pain_scale:{question:"Can you rate your ankle pain on a scale of 1 to 10?",response:"It's about a 7. It throbs constantly and spikes to a 9 if I try to move it at all.",followUp:["pain_location","pain_duration"]},
+      pain_location:{question:"Where exactly does it hurt the most?",response:"The outside of my right ankle, right below the bone. It's really swollen there and starting to bruise.",followUp:["onset","associated_symptoms"]},
+      pain_duration:{question:"How long ago did this happen?",response:"About an hour ago on the soccer field. The swelling has been getting worse since then.",followUp:["onset","previous_episodes"]},
+      onset:{question:"Can you describe exactly how the injury happened?",response:"I was dribbling the ball and another player slid into me from the side. My ankle rolled outward and I heard a pop or crack sound.",followUp:["associated_symptoms","makes_worse"]},
+      associated_symptoms:{question:"Can you wiggle your toes? Any numbness or tingling?",response:"I can wiggle them a bit but it hurts. No numbness or tingling, and the foot isn't cold or discolored.",followUp:["medications","makes_worse"]},
+      medications:{question:"Are you currently taking any medications?",response:"No, I don't take anything regularly. I took two ibuprofen about 30 minutes ago but they haven't kicked in yet.",followUp:["allergies_check","history"]},
+      history:{question:"Have you ever injured this ankle before?",response:"I sprained it mildly last year playing basketball, but nothing like this. That one healed on its own in a week.",followUp:["previous_episodes","makes_better"]},
+      allergies_check:{question:"Do you have any medication allergies?",response:"Nope, no allergies to anything that I know of — medications, food, or otherwise.",followUp:["makes_worse","makes_better"]},
+      previous_episodes:{question:"You mentioned a previous sprain — did you do any rehab for it?",response:"Not really. I just rested it and it felt fine after. Maybe I should have done physio. Think that could be related?",followUp:["makes_worse"]},
+      makes_worse:{question:"What makes the pain worse right now?",response:"Any movement at all. If I try to rotate my foot or put any weight on it, the pain shoots up immediately. Even the car ride here was rough.",followUp:["makes_better"]},
+      makes_better:{question:"Have you tried anything that helps with the pain?",response:"I've been icing it with a bag of frozen peas and keeping it elevated on a pillow. That helps a tiny bit. The ibuprofen hasn't done much yet.",followUp:[]},
+      activity:{question:"Were you wearing proper footwear during the game?",response:"Yeah, I had my normal soccer cleats on. They're not new or anything — I've been playing in them all season.",followUp:["previous_episodes"]}
+    }
+  },
+  {
+    id:3, name:"Tiffany Liu", initials:"TL", age:62, sex:"F",
+    healthCard:"5555 678 901", dob:"Nov 3, 1964",
+    complaint:"Persistent upper abdominal pain with nausea for 3 days",
+    triageLevel:"UPCC Level 3", triageScore:72, triageColor:"#A855F7",
+    routing:"Island Health UPCC Downtown",
+    aiSummary:"GI presentation with NSAID overuse risk; likely gastritis exacerbation. UPCC appropriate.",
+    confidence:91,
+    conditions:["GERD","Osteoarthritis"],
+    meds:["Omeprazole 20mg daily","Ibuprofen 400mg PRN"],
+    allergies:["Codeine"],
+    vitals:{hr:82,bp:"138/82",temp:"37.4",rr:18,o2:97,pain:6},
+    labResults:["CBC: WNL","BMP: WNL","LFTs: ALT slightly elevated 48 U/L","H. pylori: Pending"],
+    conversationTree:{
+      pain_scale:{question:"How would you rate your abdominal pain right now, 1 to 10?",response:"I'd say about a 6. It's a constant burning ache that gets worse after meals.",followUp:["pain_location","pain_duration"]},
+      pain_location:{question:"Can you point to where the pain is located?",response:"Right here in my upper stomach area, just below my breastbone. Sometimes it wraps around to my back a little.",followUp:["onset","associated_symptoms"]},
+      pain_duration:{question:"How long has this been going on?",response:"Three days now. It started mild but has been getting progressively worse. Today is the worst day so far.",followUp:["onset","previous_episodes"]},
+      onset:{question:"Did anything specific trigger this episode?",response:"I'm not sure, but I've been taking a lot of ibuprofen lately — almost daily for the last two weeks for my knee pain.",followUp:["medications","associated_symptoms"]},
+      associated_symptoms:{question:"Any nausea, vomiting, changes in bowel movements, or blood?",response:"Nauseous most of the time, but I haven't vomited. No blood in my stool that I've noticed. My appetite is way down though.",followUp:["history","makes_worse"]},
+      medications:{question:"Tell me about your current medications.",response:"I take omeprazole 20mg every morning for my GERD, and I've been taking ibuprofen 400mg sometimes twice a day for my arthritic knees.",followUp:["allergies_check","makes_worse"]},
+      history:{question:"Do you have any history of ulcers or serious stomach issues?",response:"I was diagnosed with GERD about 5 years ago. Never had an ulcer that I know of, but my doctor did mention I should be careful with anti-inflammatories.",followUp:["previous_episodes","medications"]},
+      allergies_check:{question:"I see you have a codeine allergy — what reaction did you have?",response:"It makes me extremely nauseous and I break out in hives. Found that out the hard way after a dental procedure years ago.",followUp:["makes_better","makes_worse"]},
+      previous_episodes:{question:"Have you had episodes like this before?",response:"My GERD flares up occasionally, but usually the omeprazole keeps it under control. This feels different — more intense and deeper than my usual heartburn.",followUp:["makes_worse","makes_better"]},
+      makes_worse:{question:"What makes the pain worse?",response:"Eating definitely makes it worse, especially anything acidic or spicy. Even drinking coffee sets it off. Lying flat after eating is terrible.",followUp:["makes_better"]},
+      makes_better:{question:"Does anything help relieve the pain?",response:"Sometimes antacids help temporarily. Sitting upright is better than lying down. I tried taking extra omeprazole but it hasn't made much difference.",followUp:[]},
+      diet:{question:"Can you describe what you've been eating recently?",response:"Honestly, not much. I've been sticking to crackers and soup because everything else hurts. I've barely eaten today.",followUp:["makes_worse"]}
+    }
+  },
+  {
+    id:4, name:"Peter Callahan", initials:"PC", age:44, sex:"M",
+    healthCard:"7777 888 999", dob:"Jan 8, 1982",
+    complaint:"Recurring tension headaches over the past month",
+    triageLevel:"Family Doctor Level 4", triageScore:35, triageColor:"#3B82F6",
+    routing:"Oak Bay Medical Centre - Family Practice",
+    aiSummary:"Tension-type headache pattern with lifestyle triggers. Non-urgent, family practice referral.",
+    confidence:93,
+    conditions:["Tension-type headaches"],
+    meds:[],
+    allergies:["None known"],
+    vitals:{hr:76,bp:"128/84",temp:"36.9",rr:14,o2:99,pain:5},
+    labResults:["No recent labs on file"],
+    conversationTree:{
+      pain_scale:{question:"How would you rate your headache pain right now?",response:"Right now it's about a 5, but some days it peaks at a 7 or 8. Today is actually one of my better days.",followUp:["pain_location","pain_duration"]},
+      pain_location:{question:"Where is the headache located?",response:"Mostly around my temples and the back of my neck. It feels like a tight band squeezing my head. Both sides equally.",followUp:["onset","associated_symptoms"]},
+      pain_duration:{question:"How long have these headaches been happening?",response:"About a month now. They used to be occasional but now I get them almost every day, usually starting in the afternoon.",followUp:["onset","previous_episodes"]},
+      onset:{question:"What's typically happening when the headaches start?",response:"Usually around 2 or 3 PM when I've been staring at my computer screen for hours. I have a big project at work with a tight deadline.",followUp:["associated_symptoms","activity"]},
+      associated_symptoms:{question:"Any visual changes, numbness, or nausea with the headaches?",response:"No, nothing like that. No aura or vision problems. Just the constant dull pressure and sometimes my neck gets really stiff.",followUp:["medications","history"]},
+      medications:{question:"What have you been taking for the headaches?",response:"Lots of Tylenol — probably 4 to 6 pills a day for the last couple weeks. It's barely helping anymore. I'm worried I'm taking too much.",followUp:["allergies_check","makes_worse"]},
+      history:{question:"Any history of migraines or other headache disorders?",response:"Not really. I'd get the occasional headache before, like anyone, but nothing like this sustained pattern. No family history of migraines either.",followUp:["previous_episodes","activity"]},
+      allergies_check:{question:"Any medication allergies?",response:"None that I know of. I've never had a bad reaction to anything.",followUp:["makes_worse","makes_better"]},
+      activity:{question:"Tell me about your sleep and stress levels lately.",response:"Honestly terrible. I'm sleeping maybe 5 hours a night and the stress from work is through the roof. I'm at my computer 12 hours a day, barely taking breaks.",followUp:["makes_worse","makes_better"]},
+      previous_episodes:{question:"Have you had a period of frequent headaches like this before?",response:"A few years ago during another stressful work period, but it wasn't this bad or this long. That time it resolved when the project ended.",followUp:["makes_worse","makes_better"]},
+      makes_worse:{question:"What makes the headaches worse?",response:"Stress, screen time, bright lights, and not sleeping enough. Also if I skip meals, which I've been doing a lot because I'm so busy.",followUp:["makes_better"]},
+      makes_better:{question:"Anything that helps relieve them?",response:"A hot shower on the back of my neck helps temporarily. Stepping outside for fresh air gives a little relief. Tylenol used to help but doesn't anymore.",followUp:[]}
+    }
+  },
+  {
+    id:5, name:"Anna Hall", initials:"AH", age:24, sex:"F",
+    healthCard:"3333 444 555", dob:"Apr 12, 2002",
+    complaint:"Seasonal allergy symptoms — sneezing, itchy eyes, runny nose",
+    triageLevel:"Pharmacy Level 5", triageScore:20, triageColor:"#10B981",
+    routing:"Parkside Pharmacy - OTC Recommendation",
+    aiSummary:"Classic seasonal allergic rhinitis without systemic involvement. Pharmacy-level care appropriate.",
+    confidence:96,
+    conditions:["Seasonal allergic rhinitis"],
+    meds:[],
+    allergies:["Sulfonamide antibiotics"],
+    vitals:{hr:72,bp:"112/70",temp:"36.6",rr:14,o2:99,pain:2},
+    labResults:["No recent labs on file"],
+    conversationTree:{
+      pain_scale:{question:"How would you describe the severity of your allergy symptoms?",response:"They're driving me crazy — I'd say an 8 out of 10 for annoyance. Not painful exactly, but I can barely function. Non-stop sneezing all day.",followUp:["pain_location","pain_duration"]},
+      pain_location:{question:"Which symptoms are bothering you the most?",response:"The itchy, watery eyes are the worst. I can't stop rubbing them and they're all red. The runny nose is a close second — I've gone through two boxes of tissues today.",followUp:["onset","associated_symptoms"]},
+      pain_duration:{question:"When did these symptoms start?",response:"About a week ago when everything started blooming. The cherry blossoms are beautiful but they're destroying me right now.",followUp:["onset","previous_episodes"]},
+      onset:{question:"Do your symptoms seem worse at any particular time of day?",response:"Mornings are the worst, especially if I open my windows at night. And anytime I go outside, it's like an explosion of sneezing within minutes.",followUp:["associated_symptoms","makes_worse"]},
+      associated_symptoms:{question:"Any difficulty breathing, wheezing, or throat swelling?",response:"No, nothing like that. No trouble breathing at all. Just the sneezing, runny nose, and itchy eyes. Oh, and my ears feel a bit itchy too.",followUp:["medications","history"]},
+      medications:{question:"Have you tried any allergy medications?",response:"I took Benadryl once but it knocked me out completely — I slept for 14 hours. I haven't tried anything else because I was afraid it would do the same thing.",followUp:["allergies_check","makes_better"]},
+      history:{question:"Have you dealt with seasonal allergies before?",response:"Yeah, I've had them since I was a teenager, but they've never been this bad. Usually I just tough it out, but this year is on another level.",followUp:["previous_episodes","makes_worse"]},
+      allergies_check:{question:"I see you have a sulfonamide allergy — can you tell me about that?",response:"Yeah, I was prescribed Bactrim once for a UTI and broke out in a bad rash and had swelling. The doctor told me to avoid all sulfa drugs after that.",followUp:["makes_worse","makes_better"]},
+      previous_episodes:{question:"What have you done in past years to manage your allergies?",response:"Honestly, not much. I'd just use tissues and maybe take a Benadryl at night. I never went to a doctor specifically for it. My mom always said I'd grow out of it.",followUp:["makes_worse","makes_better"]},
+      makes_worse:{question:"What seems to trigger or worsen your symptoms?",response:"Being outside is the big one, especially on windy days. Also my cat — I wonder if it's not just pollen. Dust makes me sneeze too.",followUp:["makes_better"]},
+      makes_better:{question:"Does anything help with the symptoms?",response:"Taking a shower helps temporarily, and running my air purifier in the bedroom at night. Cold compresses on my eyes feel amazing. But nothing lasts very long.",followUp:[]},
+      lifestyle:{question:"How are these symptoms affecting your daily life?",response:"I'm missing study sessions, I can't concentrate in lectures, and I look like I've been crying all day. It's embarrassing. I really need something that works.",followUp:["medications"]}
+    }
+  },
+  {
+    id:6, name:"Lee Jackson", initials:"LJ", age:18, sex:"M",
+    healthCard:"6666 777 888", dob:"Sep 30, 2008",
+    complaint:"Cold symptoms for 2 days — sore throat, congestion, mild fever",
+    triageLevel:"8-1-1 Level 5", triageScore:25, triageColor:"#06B6D4",
+    routing:"8-1-1 BC HealthLink - Self-Care Guidance",
+    aiSummary:"Common viral URI presentation in otherwise healthy young male. Self-care guidance appropriate.",
+    confidence:95,
+    conditions:[],
+    meds:[],
+    allergies:["None known"],
+    vitals:{hr:78,bp:"118/74",temp:"38.2",rr:16,o2:99,pain:3},
+    labResults:["No recent labs on file"],
+    conversationTree:{
+      pain_scale:{question:"How are you feeling overall on a scale of 1 to 10?",response:"I feel about a 4 out of 10. Pretty lousy but not like I'm dying or anything. Just tired and achy all over.",followUp:["pain_location","pain_duration"]},
+      pain_location:{question:"What's your main symptom right now?",response:"My throat is really sore — it hurts to swallow. And my nose is completely stuffed up on both sides. I can only breathe through my mouth.",followUp:["onset","associated_symptoms"]},
+      pain_duration:{question:"When did the symptoms start?",response:"Two days ago. I woke up with a scratchy throat and it's gotten worse since then. The congestion started yesterday.",followUp:["onset","previous_episodes"]},
+      onset:{question:"Did anything happen before the symptoms started? Exposure to anyone sick?",response:"Yeah actually, my friend at school had a cold last week. We were hanging out a lot. A few other kids in my class are sick too.",followUp:["associated_symptoms","activity"]},
+      associated_symptoms:{question:"Any cough, headache, or body aches along with this?",response:"Some coughing, mostly dry. A mild headache off and on. And my whole body feels achy, like I ran a marathon. My mom says my forehead feels warm.",followUp:["medications","makes_worse"]},
+      medications:{question:"Have you taken anything for the symptoms?",response:"My mom gave me some Tylenol this morning which helped a little with the aches. I've been drinking lots of orange juice too.",followUp:["allergies_check","history"]},
+      history:{question:"Do you have any ongoing health conditions?",response:"Nope, I'm pretty healthy usually. I play on the school basketball team. This is the first time I've been sick in maybe a year.",followUp:["previous_episodes","makes_better"]},
+      allergies_check:{question:"Any medication allergies?",response:"Not that I know of. I've taken Tylenol and Advil before with no problems.",followUp:["makes_worse","makes_better"]},
+      previous_episodes:{question:"When was the last time you had something like this?",response:"Maybe a year ago? I get a cold once or twice a year usually. They always go away on their own after a few days.",followUp:["makes_worse","makes_better"]},
+      activity:{question:"Have you been able to eat and drink normally?",response:"Not really eating much — my throat hurts too much for solid food. But I've been drinking a ton of water and juice. My mom made me soup.",followUp:["makes_worse","makes_better"]},
+      makes_worse:{question:"What makes you feel worse?",response:"Trying to talk a lot makes my throat worse. Cold air seems to make the congestion worse. And I couldn't sleep last night because I couldn't breathe through my nose.",followUp:["makes_better"]},
+      makes_better:{question:"What seems to help?",response:"The Tylenol helps with aches and fever. Hot tea with honey is really soothing for my throat. And a hot shower opened up my sinuses for a little while.",followUp:[]}
+    }
+  }
+];
+
+const FACILITIES = [
+  {id:"FAC-001",name:"Royal Jubilee Hospital",type:"ER",lat:48.4356,lng:-123.3252,wait:"45 min",distance:"4.2 km",color:"#ef4444"},
+  {id:"FAC-002",name:"Victoria General Hospital",type:"ER",lat:48.4634,lng:-123.3964,wait:"62 min",distance:"8.1 km",color:"#ef4444"},
+  {id:"FAC-003",name:"Saanich Peninsula Hospital",type:"ER",lat:48.5894,lng:-123.4194,wait:"20 min",distance:"22 km",color:"#f59e0b"},
+  {id:"FAC-004",name:"Island Health UPCC Downtown",type:"UPCC",lat:48.4284,lng:-123.3656,wait:"15 min",distance:"2.1 km",color:"#a855f7"},
+  {id:"FAC-005",name:"Westshore UPCC",type:"UPCC",lat:48.4502,lng:-123.4952,wait:"8 min",distance:"14 km",color:"#a855f7"},
+  {id:"FAC-006",name:"James Bay Urgent Care",type:"UPCC",lat:48.4089,lng:-123.3684,wait:"12 min",distance:"3.5 km",color:"#a855f7"},
+  {id:"FAC-007",name:"Downtown Family Clinic",type:"Family",lat:48.4295,lng:-123.3693,wait:"30 min",distance:"1.8 km",color:"#3b82f6"},
+  {id:"FAC-008",name:"Westshore Family Clinic",type:"Family",lat:48.4502,lng:-123.4863,wait:"25 min",distance:"13 km",color:"#3b82f6"},
+  {id:"FAC-009",name:"Oak Bay Medical Centre",type:"Family",lat:48.4478,lng:-123.2931,wait:"20 min",distance:"5.6 km",color:"#3b82f6"},
+  {id:"FAC-010",name:"Parkside Pharmacy",type:"Pharmacy",lat:48.4321,lng:-123.3658,wait:"5 min",distance:"1.2 km",color:"#10b981"},
+  {id:"FAC-011",name:"Shoppers Drug Mart",type:"Pharmacy",lat:48.4265,lng:-123.4456,wait:"3 min",distance:"9.3 km",color:"#10b981"},
+  {id:"FAC-012",name:"8-1-1 BC HealthLink",type:"Virtual",lat:49.2827,lng:-123.1207,wait:"2 min",distance:"Virtual",color:"#06b6d4"}
+];
+
+const MEDICAL_KEYWORDS = ["chest pain","breathing","blood pressure","diabetes","aspirin","coronary","hypertension","heart","cardiac","symptoms","triage","emergency","ankle","fracture","swollen","x-ray","ibuprofen","omeprazole","GERD","nausea","abdominal","headache","neurological","allergy","antihistamine","fever","sore throat","congestion","pain","shortness of breath","NSAID","acetaminophen","medication","wheez","ulcer","troponin","oxygen","deformity","migraine","allergic","swelling","codeine","sulfonamide"];
+
+// ===================================================================
+//  STATE
+// ===================================================================
+let currentView = 'queue';
+let currentSort = 'urgency';
+let queue = [];          // patient IDs in queue
+let activePatients = {}; // { patientId: { askedKeys:[], messages:[], startTime, checks:[bool x5] } }
+let completedPatients = []; // [{patient, facility, time}]
+let activeConvoId = null; // currently viewing conversation
+let leafletMap = null;
+let clockInterval = null;
+
+// ===================================================================
+//  CLOCK
+// ===================================================================
+function updateClock() {
+  const now = new Date();
+  let h = now.getHours(), m = now.getMinutes(), s = now.getSeconds(), ampm = h >= 12 ? 'PM' : 'AM';
+  h = h % 12 || 12;
+  document.getElementById('clock').textContent = `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')} ${ampm}`;
+}
+
+// ===================================================================
+//  HELPERS
+// ===================================================================
+function getPatient(id) { return PATIENTS.find(p => p.id === id); }
+
+function formatWait(startTime) {
+  const diff = Math.floor((Date.now() - startTime) / 1000);
+  if (diff < 60) return `${diff}s`;
+  if (diff < 3600) return `${Math.floor(diff/60)}m ${diff%60}s`;
+  return `${Math.floor(diff/3600)}h ${Math.floor((diff%3600)/60)}m`;
+}
+
+function highlightMedical(text) {
+  let result = text;
+  MEDICAL_KEYWORDS.forEach(kw => {
+    const regex = new RegExp(`(${kw})`, 'gi');
+    result = result.replace(regex, '<span class="highlight">$1</span>');
+  });
+  return result;
+}
+
+function triageGaugeSVG(score, color, size) {
+  const r = size/2 - 4;
+  const circ = 2 * Math.PI * r;
+  const offset = circ - (score / 100) * circ;
+  return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+    <circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="var(--border)" stroke-width="3"/>
+    <circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="${color}" stroke-width="3"
+      stroke-dasharray="${circ}" stroke-dashoffset="${offset}" stroke-linecap="round"
+      transform="rotate(-90 ${size/2} ${size/2})" style="transition:stroke-dashoffset .8s ease"/>
+  </svg>`;
+}
+
+function getRecommendedFacility(patient) {
+  // Match based on routing text
+  return FACILITIES.find(f => patient.routing.toLowerCase().includes(f.name.toLowerCase().split(' ')[0])) || FACILITIES[0];
+}
+
+function getAlternateFacilities(patient, recommended) {
+  return FACILITIES.filter(f => f.id !== recommended.id && f.id !== 'FAC-012').slice(0, 2);
+}
+
+// ===================================================================
+//  VIEW SWITCHING
+// ===================================================================
+function switchView(view) {
+  currentView = view;
+  document.querySelectorAll('.nav-item').forEach(el => el.classList.toggle('active', el.dataset.view === view));
+
+  document.getElementById('queue-view').style.display = view === 'queue' ? '' : 'none';
+  document.getElementById('active-view').style.display = view === 'active' && !activeConvoId ? '' : 'none';
+  document.getElementById('completed-view').style.display = view === 'completed' ? '' : 'none';
+  document.getElementById('convo-view').className = (view === 'active' && activeConvoId) ? 'visible' : '';
+
+  if (view === 'queue') { activeConvoId = null; renderQueue(); }
+  if (view === 'active' && !activeConvoId) renderActiveList();
+  if (view === 'completed') renderCompletedList();
+}
+
+function openConversation(patientId) {
+  activeConvoId = patientId;
+  currentView = 'active';
+  document.querySelectorAll('.nav-item').forEach(el => el.classList.toggle('active', el.dataset.view === 'active'));
+  document.getElementById('queue-view').style.display = 'none';
+  document.getElementById('active-view').style.display = 'none';
+  document.getElementById('completed-view').style.display = 'none';
+  document.getElementById('convo-view').className = 'visible';
+  renderConversation(patientId);
+}
+
+// ===================================================================
+//  QUEUE RENDERING
+// ===================================================================
+function setSort(sort) {
+  currentSort = sort;
+  document.querySelectorAll('.sort-btn').forEach(b => b.classList.toggle('active', b.dataset.sort === sort));
+  renderQueue();
+}
+
+function getSortedQueue() {
+  const patients = queue.map(id => getPatient(id)).filter(Boolean);
+  if (currentSort === 'urgency') patients.sort((a,b) => b.triageScore - a.triageScore);
+  else if (currentSort === 'wait') patients.sort((a,b) => {
+    const aIdx = queue.indexOf(a.id), bIdx = queue.indexOf(b.id);
+    return aIdx - bIdx; // earlier in queue = longer wait
+  });
+  else if (currentSort === 'triage') patients.sort((a,b) => {
+    const aLevel = parseInt(a.triageLevel.match(/\d+/)?.[0] || 5);
+    const bLevel = parseInt(b.triageLevel.match(/\d+/)?.[0] || 5);
+    return aLevel - bLevel;
+  });
+  return patients;
+}
+
+function renderQueue() {
+  const list = document.getElementById('queue-list');
+  const sorted = getSortedQueue();
+  document.getElementById('queue-count').textContent = sorted.length;
+  document.getElementById('queue-badge').textContent = sorted.length;
+
+  list.innerHTML = sorted.map((p, i) => {
+    const isUrgent = p.triageScore >= 90;
+    return `<div class="patient-card-wrap${isUrgent ? ' urgent' : ''}" style="border-left-color:${p.triageColor};animation-delay:${i*0.08}s" onclick="acceptPatient(${p.id})">
+      <div class="pc-row">
+        <div class="pc-avatar" style="background:${p.triageColor}">${p.initials}</div>
+        <div class="pc-middle">
+          <div class="pc-name-row">
+            <span class="pc-name">${p.name}</span>
+            <span class="pc-demo">${p.age}${p.sex} </span>
+          </div>
+          <div class="pc-complaint">${p.complaint}</div>
+          <div class="pc-meta">
+            <span class="pc-triage-badge" style="background:${p.triageColor}">${p.triageLevel}</span>
+            <span class="pc-wait">Waiting ${formatWait(p._queueTime || Date.now())}</span>
+          </div>
+        </div>
+        <div class="pc-right">
+          <div class="pc-gauge">
+            ${triageGaugeSVG(p.triageScore, p.triageColor, 44)}
+            <div class="pc-gauge-text">${p.triageScore}</div>
+          </div>
+          <button class="pc-accept" onclick="event.stopPropagation();acceptPatient(${p.id})">Accept</button>
+        </div>
+      </div>
+      <div class="pc-ai-strip">
+        <span>${p.aiSummary}</span>
+        <span class="pc-confidence">${p.confidence}% confidence</span>
+      </div>
+    </div>`;
+  }).join('');
+
+  updateBottomBar();
+}
+
+// ===================================================================
+//  ACCEPT PATIENT
+// ===================================================================
+function acceptPatient(id) {
+  // Remove from queue
+  queue = queue.filter(qid => qid !== id);
+
+  // Create active conversation state
+  activePatients[id] = {
+    askedKeys: [],
+    messages: [
+      { role:'system', text:'Patient intake complete. AI triage assessment ready for review.' },
+      { role:'system', text:`Patient ${getPatient(id).name} has been connected to this session.` }
+    ],
+    startTime: Date.now(),
+    checks: [true, true, false, false, false] // Identity and Health Card verified by intake
+  };
+
+  // Switch to conversation
+  openConversation(id);
+  updateBottomBar();
+  renderQueue();
+  updateActiveBadge();
+}
+
+// ===================================================================
+//  ACTIVE LIST
+// ===================================================================
+function renderActiveList() {
+  const list = document.getElementById('active-list');
+  const ids = Object.keys(activePatients);
+  document.getElementById('active-count').textContent = ids.length;
+
+  if (ids.length === 0) {
+    list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-dim);font-size:14px">No active conversations. Accept a patient from the queue to begin.</div>';
+    return;
+  }
+
+  list.innerHTML = ids.map(id => {
+    const p = getPatient(parseInt(id));
+    const state = activePatients[id];
+    return `<div class="patient-card-wrap" style="border-left-color:${p.triageColor};cursor:pointer" onclick="openConversation(${p.id})">
+      <div class="pc-row">
+        <div class="pc-avatar" style="background:${p.triageColor}">${p.initials}</div>
+        <div class="pc-middle">
+          <div class="pc-name-row">
+            <span class="pc-name">${p.name}</span>
+            <span class="pc-demo">${p.age}${p.sex}</span>
+          </div>
+          <div class="pc-complaint">${p.complaint}</div>
+          <div class="pc-meta">
+            <span class="pc-triage-badge" style="background:${p.triageColor}">${p.triageLevel}</span>
+            <span class="pc-wait">Active ${formatWait(state.startTime)}</span>
+            <span style="font-size:11px;color:var(--accent)">${state.askedKeys.length} questions asked</span>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ===================================================================
+//  CONVERSATION RENDERING
+// ===================================================================
+function renderConversation(patientId) {
+  const p = getPatient(patientId);
+  const state = activePatients[patientId];
+  if (!p || !state) return;
+
+  const recommended = getRecommendedFacility(p);
+  const alts = getAlternateFacilities(p, recommended);
+
+  // LEFT PANEL
+  document.getElementById('convo-left').innerHTML = `
+    <!-- Patient bar -->
+    <div class="patient-bar">
+      <div class="pb-left">
+        <div class="pc-avatar" style="background:${p.triageColor};width:36px;height:36px;font-size:13px">${p.initials}</div>
+        <div>
+          <div class="pb-name">${p.name}</div>
+          <div class="pb-details">
+            <span>${p.age}${p.sex}</span>
+            <span>HC: ${p.healthCard}</span>
+            <span class="pb-triage" style="background:${p.triageColor}">${p.triageLevel}</span>
+          </div>
+        </div>
+      </div>
+      <button class="back-btn" onclick="backToQueue()">&#8592; Back to Queue</button>
+    </div>
+
+    <!-- Verification -->
+    <div class="verify-bar" id="verify-bar">
+      ${['Identity','Health Card','Symptoms','History','Triage'].map((label, i) =>
+        `<div class="verify-item${state.checks[i] ? ' done' : ''}" id="check-${i}">
+          <div class="verify-check">${state.checks[i] ? '&#10003;' : ''}</div>
+          ${label}
+        </div>`
+      ).join('')}
+    </div>
+
+    <!-- Chat -->
+    <div class="chat-box">
+      <div class="chat-header">&#128172; Conversation</div>
+      <div class="chat-body" id="chat-body"></div>
+      <div class="chat-input-area">
+        <div class="chat-input-row">
+          <input class="chat-input" id="chat-input" placeholder="Type a message or click a suggestion..." onkeydown="if(event.key==='Enter')sendMessage()"/>
+          <button class="chat-send" onclick="sendMessage()">Send</button>
+        </div>
+        <div class="ai-pills" id="ai-pills"></div>
+      </div>
+    </div>
+
+    <!-- Escalation -->
+    <div class="escalation-bar">
+      <button class="esc-btn" onclick="alert('Phone call simulation would start here.')">&#128222; Start Phone Call</button>
+      <button class="esc-btn" onclick="alert('Video call (Zoom) creation would trigger here.')">&#128249; Start Video Call</button>
+      <button class="esc-btn" onclick="document.querySelector('.convo-right').scrollTop=0">&#128203; View Full History</button>
+    </div>
+  `;
+
+  // RIGHT PANEL
+  document.getElementById('convo-right').innerHTML = `
+    <!-- Patient Details Accordion -->
+    <div class="accordion">
+      <div class="acc-section open">
+        <div class="acc-header" onclick="toggleAcc(this)">Demographics <span class="acc-arrow">&#9654;</span></div>
+        <div class="acc-body">
+          <strong>Name:</strong> ${p.name}<br>
+          <strong>Age:</strong> ${p.age} | <strong>Sex:</strong> ${p.sex}<br>
+          <strong>DOB:</strong> ${p.dob}<br>
+          <strong>Health Card:</strong> ${p.healthCard}
+        </div>
+      </div>
+      <div class="acc-section">
+        <div class="acc-header" onclick="toggleAcc(this)">Conditions <span class="acc-arrow">&#9654;</span></div>
+        <div class="acc-body">${p.conditions.length ? p.conditions.map(c=>`&#8226; ${c}`).join('<br>') : 'No known conditions'}</div>
+      </div>
+      <div class="acc-section">
+        <div class="acc-header" onclick="toggleAcc(this)">Medications <span class="acc-arrow">&#9654;</span></div>
+        <div class="acc-body">${p.meds.length ? p.meds.map(m=>`&#8226; ${m}`).join('<br>') : 'No current medications'}</div>
+      </div>
+      <div class="acc-section">
+        <div class="acc-header" onclick="toggleAcc(this)">Allergies <span class="acc-arrow">&#9654;</span></div>
+        <div class="acc-body">${p.allergies.map(a=>`&#8226; ${a}`).join('<br>')}</div>
+      </div>
+      <div class="acc-section">
+        <div class="acc-header" onclick="toggleAcc(this)">Vitals <span class="acc-arrow">&#9654;</span></div>
+        <div class="acc-body">
+          <strong>HR:</strong> ${p.vitals.hr} bpm | <strong>BP:</strong> ${p.vitals.bp} mmHg<br>
+          <strong>Temp:</strong> ${p.vitals.temp}&deg;C | <strong>RR:</strong> ${p.vitals.rr}/min<br>
+          <strong>O2 Sat:</strong> ${p.vitals.o2}% | <strong>Pain:</strong> ${p.vitals.pain}/10
+        </div>
+      </div>
+      <div class="acc-section">
+        <div class="acc-header" onclick="toggleAcc(this)">Lab Results <span class="acc-arrow">&#9654;</span></div>
+        <div class="acc-body">${p.labResults.map(l=>`&#8226; ${l}`).join('<br>')}</div>
+      </div>
+    </div>
+
+    <!-- Triage Assessment -->
+    <div class="triage-panel">
+      <div class="triage-gauge-lg">
+        ${triageGaugeSVG(p.triageScore, p.triageColor, 80)}
+        <div class="triage-gauge-lg-text">
+          <span class="triage-gauge-lg-score" style="color:${p.triageColor}">${p.triageScore}</span>
+          <span class="triage-gauge-lg-label">SCORE</span>
+        </div>
+      </div>
+      <div class="triage-info">
+        <div class="triage-level-badge" style="background:${p.triageColor}">${p.triageLevel}</div>
+        <div class="triage-rec">${p.aiSummary}</div>
+      </div>
+    </div>
+
+    <!-- Map -->
+    <div class="map-panel"><div id="provider-map"></div></div>
+
+    <!-- Recommended Facility -->
+    <div class="facility-card recommended">
+      <div class="facility-card-label">&#9733; Recommended Facility</div>
+      <div class="fc-name">${recommended.name}</div>
+      <div class="fc-type">${recommended.type}</div>
+      <div class="fc-meta">
+        <span>&#128336; ${recommended.wait}</span>
+        <span>&#128205; ${recommended.distance}</span>
+      </div>
+      <button class="route-btn" onclick="routePatient(${p.id},'${recommended.name}')">Route Patient Here</button>
+    </div>
+
+    <!-- Alternatives -->
+    ${alts.map(f => `
+      <div class="alt-facility">
+        <div>
+          <div class="fc-name">${f.name}</div>
+          <div class="fc-meta"><span>&#128336; ${f.wait}</span><span>&#128205; ${f.distance}</span></div>
+        </div>
+        <button class="route-btn" style="width:auto;padding:5px 12px;font-size:11px" onclick="routePatient(${p.id},'${f.name}')">Route</button>
+      </div>
+    `).join('')}
+  `;
+
+  // Render messages
+  renderMessages(patientId);
+  renderPills(patientId);
+  initMap(recommended);
+}
+
+function renderMessages(patientId) {
+  const state = activePatients[patientId];
+  const body = document.getElementById('chat-body');
+  if (!body || !state) return;
+
+  body.innerHTML = state.messages.map(m => {
+    let cls = 'msg-system', label = 'SYSTEM';
+    if (m.role === 'provider') { cls = 'msg-provider'; label = 'PROVIDER'; }
+    if (m.role === 'patient') { cls = 'msg-patient'; label = 'PATIENT'; }
+    return `<div class="msg ${cls}"><div class="msg-label">${label}</div>${highlightMedical(m.text)}</div>`;
+  }).join('');
+
+  body.scrollTop = body.scrollHeight;
+}
+
+// ===================================================================
+//  AI PILLS / SUGGESTIONS
+// ===================================================================
+function renderPills(patientId) {
+  const p = getPatient(patientId);
+  const state = activePatients[patientId];
+  const pills = document.getElementById('ai-pills');
+  if (!pills || !state || !p) return;
+
+  const tree = p.conversationTree;
+  const asked = state.askedKeys;
+
+  // Determine which questions to suggest
+  let suggestions = [];
+
+  // If nothing asked yet, start with initial questions
+  if (asked.length === 0) {
+    suggestions = Object.keys(tree).slice(0, 4);
+  } else {
+    // Get follow-ups from last asked question
+    const lastKey = asked[asked.length - 1];
+    const lastNode = tree[lastKey];
+    if (lastNode && lastNode.followUp) {
+      suggestions = lastNode.followUp.filter(k => !asked.includes(k));
+    }
+    // Fill remaining with un-asked questions
+    const remaining = Object.keys(tree).filter(k => !asked.includes(k) && !suggestions.includes(k));
+    while (suggestions.length < 4 && remaining.length > 0) {
+      suggestions.push(remaining.shift());
+    }
+  }
+
+  suggestions = suggestions.slice(0, 4);
+
+  pills.innerHTML = suggestions.map(key => {
+    const node = tree[key];
+    if (!node) return '';
+    return `<button class="ai-pill" onclick="askQuestion(${patientId},'${key}')">${node.question}</button>`;
+  }).join('');
+}
+
+// ===================================================================
+//  MESSAGING
+// ===================================================================
+function sendMessage() {
+  const input = document.getElementById('chat-input');
+  if (!input || !activeConvoId) return;
+  const text = input.value.trim();
+  if (!text) return;
+
+  const state = activePatients[activeConvoId];
+  state.messages.push({ role: 'provider', text });
+  input.value = '';
+  renderMessages(activeConvoId);
+
+  // Check for partial match to tree
+  const p = getPatient(activeConvoId);
+  const tree = p.conversationTree;
+  const asked = state.askedKeys;
+
+  // Try to find a matching question
+  let matchKey = null;
+  for (const key of Object.keys(tree)) {
+    if (asked.includes(key)) continue;
+    const q = tree[key].question.toLowerCase();
+    const t = text.toLowerCase();
+    // Simple keyword matching
+    const qWords = q.split(/\s+/).filter(w => w.length > 3);
+    const matchCount = qWords.filter(w => t.includes(w)).length;
+    if (matchCount >= 2) { matchKey = key; break; }
+  }
+
+  if (matchKey) {
+    state.askedKeys.push(matchKey);
+    showTypingThenRespond(activeConvoId, tree[matchKey].response);
+    updateChecks(activeConvoId, matchKey);
+  } else {
+    // Generic response
+    showTypingThenRespond(activeConvoId, "I understand. Could you ask me something more specific about my symptoms or medical history?");
+  }
+}
+
+function askQuestion(patientId, key) {
+  const p = getPatient(patientId);
+  const state = activePatients[patientId];
+  const tree = p.conversationTree;
+  const node = tree[key];
+  if (!node || !state) return;
+
+  state.askedKeys.push(key);
+  state.messages.push({ role: 'provider', text: node.question });
+  renderMessages(patientId);
+
+  showTypingThenRespond(patientId, node.response);
+  updateChecks(patientId, key);
+  renderPills(patientId);
+}
+
+function showTypingThenRespond(patientId, response) {
+  const body = document.getElementById('chat-body');
+  if (!body) return;
+
+  // Show typing indicator
+  const typing = document.createElement('div');
+  typing.className = 'typing-indicator';
+  typing.id = 'typing';
+  typing.innerHTML = '<div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>';
+  body.appendChild(typing);
+  body.scrollTop = body.scrollHeight;
+
+  setTimeout(() => {
+    const t = document.getElementById('typing');
+    if (t) t.remove();
+    const state = activePatients[patientId];
+    if (state) {
+      state.messages.push({ role: 'patient', text: response });
+      renderMessages(patientId);
+      renderPills(patientId);
+    }
+  }, 800 + Math.random() * 700);
+}
+
+function updateChecks(patientId, key) {
+  const state = activePatients[patientId];
+  // Check Symptoms (index 2) after pain/symptom questions
+  if (['pain_scale','pain_location','pain_duration','associated_symptoms','onset'].includes(key)) {
+    state.checks[2] = true;
+  }
+  // Check History (index 3) after history/medication/allergy questions
+  if (['history','medications','allergies_check','previous_episodes'].includes(key)) {
+    state.checks[3] = true;
+  }
+  // Check Triage (index 4) after 5+ questions asked
+  if (state.askedKeys.length >= 5) {
+    state.checks[4] = true;
+  }
+  // Update DOM
+  const bar = document.getElementById('verify-bar');
+  if (bar) {
+    state.checks.forEach((done, i) => {
+      const el = document.getElementById(`check-${i}`);
+      if (el && done) {
+        el.classList.add('done');
+        el.querySelector('.verify-check').innerHTML = '&#10003;';
+      }
+    });
+  }
+}
+
+// ===================================================================
+//  ROUTING
+// ===================================================================
+function routePatient(patientId, facilityName) {
+  const p = getPatient(patientId);
+
+  // Show modal
+  const modal = document.createElement('div');
+  modal.className = 'modal-overlay';
+  modal.id = 'route-modal';
+  modal.innerHTML = `
+    <div class="modal">
+      <div class="modal-icon">&#9989;</div>
+      <div class="modal-title">Patient Routed Successfully</div>
+      <div class="modal-text">${p.name} has been routed to the selected facility.</div>
+      <div class="modal-details">
+        <strong>Patient:</strong> ${p.name} (${p.age}${p.sex})<br>
+        <strong>Triage Level:</strong> ${p.triageLevel}<br>
+        <strong>Facility:</strong> ${facilityName}<br>
+        <strong>Time:</strong> ${new Date().toLocaleTimeString()}<br>
+        <strong>Questions Asked:</strong> ${activePatients[patientId]?.askedKeys.length || 0}<br>
+        <strong>AI Confidence:</strong> ${p.confidence}%
+      </div>
+      <button class="modal-btn" onclick="closeRouteModal(${patientId})">Return to Queue</button>
+    </div>
+  `;
+  document.body.appendChild(modal);
+}
+
+function closeRouteModal(patientId) {
+  const modal = document.getElementById('route-modal');
+  if (modal) modal.remove();
+
+  const p = getPatient(patientId);
+  completedPatients.push({
+    patient: p,
+    facility: p.routing,
+    time: new Date().toLocaleTimeString(),
+    questionsAsked: activePatients[patientId]?.askedKeys.length || 0
+  });
+
+  delete activePatients[patientId];
+  activeConvoId = null;
+  switchView('queue');
+  updateBottomBar();
+  updateActiveBadge();
+  updateCompletedBadge();
+}
+
+// ===================================================================
+//  COMPLETED
+// ===================================================================
+function renderCompletedList() {
+  const list = document.getElementById('completed-list');
+  document.getElementById('completed-count').textContent = completedPatients.length;
+
+  if (completedPatients.length === 0) {
+    list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-dim);font-size:14px">No completed sessions yet today.</div>';
+    return;
+  }
+
+  list.innerHTML = completedPatients.map(c => `
+    <div class="completed-card">
+      <div class="pc-avatar" style="background:${c.patient.triageColor}">${c.patient.initials}</div>
+      <div class="pc-middle">
+        <div class="pc-name-row">
+          <span class="pc-name">${c.patient.name}</span>
+          <span class="pc-demo">${c.patient.age}${c.patient.sex}</span>
+          <span class="completed-badge">Completed</span>
+        </div>
+        <div class="pc-complaint">Routed to: ${c.facility}</div>
+        <div class="pc-meta">
+          <span class="pc-triage-badge" style="background:${c.patient.triageColor}">${c.patient.triageLevel}</span>
+          <span class="pc-wait">Completed at ${c.time}</span>
+          <span style="font-size:11px;color:var(--text-dim)">${c.questionsAsked} questions</span>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ===================================================================
+//  MAP
+// ===================================================================
+function initMap(recommended) {
+  const container = document.getElementById('provider-map');
+  if (!container) return;
+
+  // Destroy previous if exists
+  if (leafletMap) { leafletMap.remove(); leafletMap = null; }
+
+  leafletMap = L.map('provider-map', { zoomControl: true, attributionControl: false }).setView([48.4556, -123.3856], 11);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(leafletMap);
+
+  FACILITIES.forEach(f => {
+    if (f.type === 'Virtual') return;
+    const isRec = f.id === recommended.id;
+    const marker = L.circleMarker([f.lat, f.lng], {
+      radius: isRec ? 10 : 6,
+      fillColor: f.color,
+      color: isRec ? '#fff' : f.color,
+      weight: isRec ? 3 : 1,
+      fillOpacity: 0.8
+    }).addTo(leafletMap);
+    marker.bindTooltip(`<strong>${f.name}</strong><br>${f.type} &bull; ${f.wait}`, {
+      direction: 'top',
+      className: ''
+    });
+  });
+
+  // Center on recommended
+  leafletMap.setView([recommended.lat, recommended.lng], 12);
+
+  // Fix map rendering
+  setTimeout(() => leafletMap.invalidateSize(), 200);
+}
+
+// ===================================================================
+//  ACCORDION
+// ===================================================================
+function toggleAcc(header) {
+  const section = header.parentElement;
+  section.classList.toggle('open');
+}
+
+// ===================================================================
+//  SIDEBAR
+// ===================================================================
+function toggleSidebar() {
+  const sidebar = document.getElementById('sidebar');
+  sidebar.classList.toggle('open');
+}
+
+function backToQueue() {
+  // Keep the conversation active but go back to queue/active list
+  activeConvoId = null;
+  switchView('queue');
+}
+
+// ===================================================================
+//  BOTTOM BAR / BADGES
+// ===================================================================
+function updateBottomBar() {
+  document.getElementById('bb-queued').textContent = queue.length;
+  document.getElementById('bb-active').textContent = Object.keys(activePatients).length;
+  document.getElementById('bb-completed').textContent = completedPatients.length;
+
+  // Active indicators
+  const indicators = document.getElementById('bb-indicators');
+  indicators.innerHTML = Object.keys(activePatients).map(id => {
+    const p = getPatient(parseInt(id));
+    return `<div class="bb-active-dot" style="background:${p.triageColor}" title="${p.name}" onclick="openConversation(${p.id})">${p.initials}</div>`;
+  }).join('');
+}
+
+function updateActiveBadge() {
+  const count = Object.keys(activePatients).length;
+  const badge = document.getElementById('active-badge');
+  badge.textContent = count;
+  badge.style.display = count > 0 ? '' : 'none';
+}
+
+function updateCompletedBadge() {
+  const count = completedPatients.length;
+  const badge = document.getElementById('completed-badge');
+  badge.textContent = count;
+  badge.style.display = count > 0 ? '' : 'none';
+}
+
+// ===================================================================
+//  SIMULATION ENGINE
+// ===================================================================
+function addToQueue(patientId) {
+  const p = getPatient(patientId);
+  if (!p) return;
+  p._queueTime = Date.now();
+  queue.push(patientId);
+  renderQueue();
+  updateBottomBar();
+}
+
+function startSimulation() {
+  // Wave 1: 3 patients after 2s (staggered 1s each)
+  setTimeout(() => addToQueue(1), 2000);
+  setTimeout(() => addToQueue(2), 3000);
+  setTimeout(() => addToQueue(3), 4000);
+
+  // Wave 2: 2 more after ~10s
+  setTimeout(() => addToQueue(4), 10000);
+  setTimeout(() => addToQueue(5), 11000);
+
+  // Wave 3: 1 more after ~20s
+  setTimeout(() => addToQueue(6), 20000);
+}
+
+// ===================================================================
+//  WAIT TIME UPDATER
+// ===================================================================
+function startWaitUpdater() {
+  setInterval(() => {
+    // Update wait times in queue cards
+    document.querySelectorAll('.pc-wait').forEach(el => {
+      // Only update queue items (not active)
+    });
+    if (currentView === 'queue') renderQueue();
+    if (currentView === 'active' && !activeConvoId) renderActiveList();
+    updateBottomBar();
+  }, 5000);
+}
+
+// ===================================================================
+//  INIT
+// ===================================================================
+function init() {
+  updateClock();
+  clockInterval = setInterval(updateClock, 1000);
+  renderQueue();
+  startSimulation();
+  startWaitUpdater();
+}
+
+init();
+</script>
+</body>
+</html>

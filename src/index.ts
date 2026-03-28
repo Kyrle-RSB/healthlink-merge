@@ -29,6 +29,16 @@ import {
   analyticsHandler,
   demoSimulateHandler,
 } from "./api/carepoint";
+import {
+  providerQueueHandler,
+  providerClaimHandler,
+  providerCompleteHandler,
+  providerActiveHandler,
+  tempAuthCreateHandler,
+  tempAuthValidateHandler,
+  providerEscalateHandler,
+  providerDeescalateHandler,
+} from "./api/provider";
 import { assistantChatHandler } from "./api/assistant";
 import { suggestHandler } from "./api/suggest";
 import {
@@ -113,6 +123,18 @@ route("POST", "/api/meetings", meetingCreateHandler, true);
 route("GET", "/api/meetings", meetingsListHandler, true);
 route("GET", "/api/meetings/:id", meetingDetailHandler, true);
 route("PATCH", "/api/meetings/:id/status", meetingStatusHandler, true);
+
+// Provider queue + management
+route("GET", "/api/provider/queue", providerQueueHandler, true);
+route("POST", "/api/provider/claim/:sessionId", providerClaimHandler, true);
+route("POST", "/api/provider/complete/:sessionId", providerCompleteHandler, true);
+route("GET", "/api/provider/active", providerActiveHandler, true);
+route("POST", "/api/provider/escalate/:sessionId", providerEscalateHandler, true);
+route("POST", "/api/provider/deescalate/:sessionId", providerDeescalateHandler, true);
+
+// Temporary auth + link generation
+route("POST", "/api/provider/temp-auth", tempAuthCreateHandler, true);
+route("GET", "/api/provider/temp-auth/:token", tempAuthValidateHandler);
 
 // Demo simulation
 route("POST", "/api/demo/simulate", demoSimulateHandler, true);

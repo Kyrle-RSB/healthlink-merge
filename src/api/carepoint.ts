@@ -6,7 +6,7 @@ import type { Env, AuthedRequest, ChatMessage } from "../types";
 import { success, error, created, notFound } from "../lib/response";
 import { parseBody, parseQuery } from "../lib/validate";
 import { buildPatientContext } from "../carepoint/context-engine";
-import { makeRoutingDecision, evaluateFollowUp, SAFETY_DISCLAIMER } from "../carepoint/routing-engine";
+import { makeRoutingDecision, evaluateFollowUp, getResolutionEstimate, SAFETY_DISCLAIMER } from "../carepoint/routing-engine";
 import { checkRerouteEligibility } from "../carepoint/rerouter";
 import { checkSessionForReroute } from "../carepoint/monitor";
 import { simulateStep } from "../carepoint/simulator";
@@ -15,6 +15,7 @@ import {
   queryFacilityById,
   queryAllPatients,
   queryPatientById,
+  queryPatientByPhone,
   queryPatientConditions,
   queryPatientMedications,
   queryPatientEncounters,
@@ -41,12 +42,22 @@ export async function chatHandler(
   const body = await parseBody<{
     session_id?: string;
     patient_id?: string;
+    phone?: string;
     message: string;
     client_sentiment?: string;
   }>(request);
 
   if (!body.message) {
     return error("message is required", 400);
+  }
+
+  // Phone auto-association: if phone provided and no patient_id, look up patient by phone
+  let resolvedPatientId = body.patient_id;
+  if (!resolvedPatientId && body.phone) {
+    const found = await queryPatientByPhone(env.DB, body.phone);
+    if (found) {
+      resolvedPatientId = found.id;
+    }
   }
 
   // Get or create session
@@ -56,14 +67,14 @@ export async function chatHandler(
     if (!session) return notFound("Session not found");
   } else {
     session = await createRoutingSession(env.DB, {
-      patient_id: body.patient_id,
+      patient_id: resolvedPatientId,
       initial_complaint: body.message,
     });
   }
 
   // Build context
   const context = await buildPatientContext(env, {
-    patientId: body.patient_id || session.patient_id || undefined,
+    patientId: resolvedPatientId || session.patient_id || undefined,
     complaint: body.message,
   });
 
@@ -122,7 +133,13 @@ export async function chatHandler(
     },
   });
 
+  // If a routing decision has been made (not a follow-up), mark session as intake_complete
+  const sessionStatus = decision.destination && decision.destination !== "pending_follow_up"
+    ? "intake_complete"
+    : undefined;
+
   await updateRoutingSession(env.DB, session.id, {
+    ...(sessionStatus ? { status: sessionStatus } : {}),
     sentiment: body.client_sentiment || decision.sentiment,
     urgency_score: decision.urgency,
     confidence_score: decision.confidence,
@@ -177,6 +194,7 @@ export async function chatHandler(
         reasoning: a.reasoning,
       })),
       reroute_eligible: decision.reroute_eligible,
+      resolution_estimate_minutes: getResolutionEstimate(decision.urgency),
     },
     sentiment: decision.sentiment,
     dashboard: {

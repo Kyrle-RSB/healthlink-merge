@@ -248,6 +248,16 @@ export async function queryPatientById(
     .first<PatientRow>();
 }
 
+export async function queryPatientByPhone(
+  db: D1Database,
+  phone: string
+): Promise<{ id: string } | null> {
+  return db
+    .prepare("SELECT id FROM patients WHERE phone = ? LIMIT 1")
+    .bind(phone)
+    .first<{ id: string }>();
+}
+
 export async function queryAllPatients(
   db: D1Database
 ): Promise<PatientRow[]> {

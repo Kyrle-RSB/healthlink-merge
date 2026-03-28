@@ -189,6 +189,7 @@ CREATE TABLE IF NOT EXISTS problems (
   red_flags TEXT,
   related_conditions TEXT,
   typical_wait_tolerance TEXT,
+  -- Future: estimated_resolution_minutes INTEGER — default resolution time estimate per CTAS level
   created_at TEXT DEFAULT (datetime('now'))
 );
 
@@ -210,6 +211,7 @@ CREATE TRIGGER IF NOT EXISTS problems_ai AFTER INSERT ON problems BEGIN
 END;
 
 -- Routing sessions (conversation + decision tracking)
+-- Valid statuses: 'active', 'intake_complete', 'provider_active', 'completed', 'cancelled'
 CREATE TABLE IF NOT EXISTS routing_sessions (
   id TEXT PRIMARY KEY,
   patient_id TEXT REFERENCES patients(id),

@@ -112,19 +112,19 @@ export async function makeRoutingDecision(
     if (aiDecision) {
       const facility = await findBestFacility(env.DB, aiDecision.destination, context);
       const alternatives = await findAlternatives(env.DB, aiDecision.destination, context);
-      return {
+      return applyConfidenceThreshold({
         ...aiDecision,
         facility,
         alternatives,
         wait_estimate_minutes: facility?.wait_minutes ?? 0,
         reroute_eligible: bestMatch.ctas_level >= 4,
-      };
+      });
     }
 
     // Fallback: use the problem's recommended destination directly
     const facility = await findBestFacility(env.DB, destination, context);
     const alternatives = await findAlternatives(env.DB, destination, context);
-    return {
+    return applyConfidenceThreshold({
       destination,
       facility,
       confidence: 0.7,
@@ -135,7 +135,7 @@ export async function makeRoutingDecision(
       wait_estimate_minutes: facility?.wait_minutes ?? 0,
       reroute_eligible: bestMatch.ctas_level >= 4,
       sentiment: "neutral",
-    };
+    });
   }
 
   // Step 3: No problem match — use AI to route from complaint text alone
@@ -145,20 +145,20 @@ export async function makeRoutingDecision(
     const enhanced = applyVitalScoreBoost(aiDecision, vitalScore);
     const facility = await findBestFacility(env.DB, enhanced.destination, context);
     const alternatives = await findAlternatives(env.DB, enhanced.destination, context);
-    return {
+    return applyConfidenceThreshold({
       ...enhanced,
       facility,
       alternatives,
       wait_estimate_minutes: facility?.wait_minutes ?? 0,
       reroute_eligible: vitalScore.level >= 4,
-    };
+    });
   }
 
   // Step 4: Ultimate fallback — suggest urgent care (safe middle ground)
   // Boost urgency if vital score warrants it
   const fallbackUrgency = vitalScore.level <= 3 ? Math.max(0.5, vitalScore.score / 100) : 0.5;
   const facility = await findBestFacility(env.DB, "urgent_care", context);
-  return {
+  return applyConfidenceThreshold({
     destination: "urgent_care",
     facility,
     confidence: 0.4,
@@ -169,7 +169,36 @@ export async function makeRoutingDecision(
     wait_estimate_minutes: facility?.wait_minutes ?? 0,
     reroute_eligible: true,
     sentiment: vitalScore.level <= 3 ? "cautious" : "neutral",
-  };
+  });
+}
+
+// ---- Confidence Threshold Enforcement ----
+
+/**
+ * If confidence < 0.70 (maps to ~95% in clinical scale), bump the triage
+ * level by 1 (more urgent) for safety.  Mutates and returns the decision.
+ */
+function applyConfidenceThreshold(
+  decision: RoutingDecision
+): RoutingDecision {
+  if (decision.confidence < 0.70 && decision.destination !== "er" && decision.destination !== "pending_follow_up") {
+    // Bump urgency (higher = more urgent)
+    decision.urgency = Math.min(decision.urgency + 0.2, 1.0);
+    decision.clinical_reasoning += " | AI confidence below threshold — triage level bumped for safety";
+
+    // Escalate destination one level if not already high-acuity
+    const escalationMap: Record<string, string> = {
+      self_care: "pharmacy",
+      pharmacy: "virtual",
+      virtual: "clinic",
+      clinic: "urgent_care",
+      urgent_care: "er",
+    };
+    if (escalationMap[decision.destination]) {
+      decision.destination = escalationMap[decision.destination];
+    }
+  }
+  return decision;
 }
 
 // ---- Vital Score Boost ----
@@ -546,6 +575,27 @@ function formatDestination(dest: string): string {
     mental_health_crisis: "the Crisis Care Centre",
   };
   return labels[dest] || dest;
+}
+
+/**
+ * Map CTAS-like urgency levels to default resolution time estimates (minutes).
+ * Accepts either a CTAS level (1-5) or a 0-1 urgency score which is mapped to CTAS.
+ */
+export function getResolutionEstimate(urgencyOrCtas: number): number {
+  // If value is between 0-1, treat as urgency score and map to CTAS level
+  let ctasLevel: number;
+  if (urgencyOrCtas > 0 && urgencyOrCtas <= 1) {
+    // urgency 0.8-1.0 = CTAS 1, 0.6-0.8 = CTAS 2, 0.4-0.6 = CTAS 3, 0.2-0.4 = CTAS 4, 0-0.2 = CTAS 5
+    if (urgencyOrCtas >= 0.8) ctasLevel = 1;
+    else if (urgencyOrCtas >= 0.6) ctasLevel = 2;
+    else if (urgencyOrCtas >= 0.4) ctasLevel = 3;
+    else if (urgencyOrCtas >= 0.2) ctasLevel = 4;
+    else ctasLevel = 5;
+  } else {
+    ctasLevel = Math.round(urgencyOrCtas);
+  }
+  const estimates: Record<number, number> = { 1: 15, 2: 30, 3: 60, 4: 120, 5: 240 };
+  return estimates[ctasLevel] || 60;
 }
 
 /** Safety disclaimer appended to non-ER routing responses */
