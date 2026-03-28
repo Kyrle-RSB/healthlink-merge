@@ -178,3 +178,93 @@ DYNAMIC DASHBOARD populates: map, facilities, routing, alternatives
     ↓
 ROUTING DECISION → patient directed to right care, right place, right time
 ```
+
+---
+
+## 10. GAP ANALYSIS — What's Built vs What's Needed
+
+> Generated from codebase audit on March 28, 2026.
+
+### 10.1 FULLY WORKING (no changes needed)
+
+| # | Scope Requirement | Where It Lives |
+|---|---|---|
+| 1 | Triage scoring with vital thresholds | `src/carepoint/vital-scoring.ts` + `routing-engine.ts` |
+| 2 | 14 hard rules for emergency detection | `routing-engine.ts` INSTANT_ER_KEYWORDS |
+| 3 | 4 follow-up rules for ambiguous symptoms | `routing-engine.ts` FOLLOW_UP_KEYWORDS |
+| 4 | Flag to 3–5 facilities with best capacity | `findBestFacility()` + `findAlternatives()` |
+| 5 | Dynamic dashboard: map, facilities, routing, alternatives | `carepoint.js` map/facility/decision updates |
+| 6 | Facility load bars with real-time wait times | D1 system_state + facility grid |
+| 7 | Decision rationale (clinical reasoning) | `decision.clinical_reasoning` in routing response |
+| 8 | Transcript persistence | `routing_sessions.conversation_log` (JSON) |
+| 9 | Safety disclaimers + 911/811/988 fallbacks | Appended to all non-ER responses |
+| 10 | Demo scenarios (9 patients, all 5 CTAS levels) | `carepoint.js` DEMOS + `dashboard.html` |
+| 11 | Live Call Dashboard with 6 simultaneous calls | `dashboard.html` full simulation |
+| 12 | Call duration counters | Both `dashboard.html` and `carepoint.js` |
+| 13 | Zoom video call integration (backend) | `src/zoom/` + `src/api/zoom.ts` |
+
+### 10.2 PARTIAL (needs specific additions to be complete)
+
+| # | Scope Requirement | What Exists | What's Missing to Complete |
+|---|---|---|---|
+| P1 | AI assessment results updating on cards | Triage score calculated internally | Expose score/level/reasoning on dashboard call cards in real-time |
+| P2 | Urgency ranking — sort by most urgent | Each call has urgency score | Cards not sorted by urgency; need dynamic reordering |
+| P3 | AI question suggestions (RAG) | `/api/assistant/suggest` with GPT + quick response buttons | Not true RAG — no vector retrieval. Needs Pinecone/embedding search for clinical knowledge |
+| P4 | Provider text conversation | Patient↔CarePoint AI chat works | No provider↔patient messaging — provider can't type to patient |
+| P5 | Provider escalate to phone/video | Zoom meeting creation API exists | No "Escalate to Video" button in provider UI linked to current session |
+| P6 | Demo with clickable provider questions | 6 quick response buttons exist | Need deeper branching responses — patient should respond to provider clicks, not just log them |
+| P7 | Deep conversational response database | 9 scripted scenarios (6–14 turns each) | Need branching response trees so provider clicking different questions gets different patient responses |
+| P8 | Deepgram voice transcription | WebSocket integration built | Needs API key configured + no outbound call handling |
+| P9 | Temp auth for patients without health cards | Anonymous patient_id works | No temp token, no expiry, no phone-number-based file, no link generation |
+
+### 10.3 NOT BUILT (needs new implementation)
+
+| # | Scope Requirement | What's Needed |
+|---|---|---|
+| N1 | AI voice bot as first contact | RingCentral/Twilio inbound call → AI voice agent (TTS + STT) |
+| N2 | Phone number auto-association to patient | Lookup `patients.phone` on incoming call, auto-load profile |
+| N3 | BC Services Card validation | Card format validation + identity verification questions |
+| N4 | Voice authentication from past calls | Speaker embedding enrollment + verification (future, not hackathon) |
+| N5 | Resolution time estimates (historical) | New table tracking problem_type → avg_resolution_minutes |
+| N6 | Queue system with "intake complete" tag | New status enum in routing_sessions + queue UI |
+| N7 | Provider dashboard (accept/view queued patients) | New page: provider sees queue of intake-complete patients, clicks to open |
+| N8 | Text returns after phone/video closes | Session state machine: text → phone → text (preserve connection) |
+| N9 | Phone-first access channel | RingCentral inbound number → AI pickup → transcription → routing |
+| N10 | BC Services Card app integration | Deep link / web portal that activates on call connection |
+
+---
+
+## 11. IMPLEMENTATION PLAN (Prioritized for Demo Impact)
+
+### Phase 1 — Provider Dashboard + Queue (Highest Demo Impact)
+**New page: `frontend/provider.html`** — The missing piece that ties everything together.
+
+- **Queue view**: Shows all patients with "intake complete" status, sorted by urgency then wait time
+- **Patient cards**: Show AI assessment, triage score, wait duration, chief complaint
+- **Click to open**: Full patient context (transcript, history, meds, conditions, AI reasoning)
+- **Text conversation**: Provider types to patient, AI suggests questions as clickable buttons
+- **Branching responses**: Patient auto-responds based on provider's question selection
+- **Escalate buttons**: "Start Video Call" (creates Zoom meeting), "Start Phone Call"
+- **After escalation closes**: Returns to text view
+
+### Phase 2 — Queue System + Intake Complete Flow
+- Add `status = 'intake_complete'` to routing_sessions
+- After AI chat completes intake → mark session as intake_complete
+- Provider dashboard polls for intake_complete sessions
+- Provider claims a session → status becomes 'provider_active'
+
+### Phase 3 — Urgency Sorting + Resolution Estimates
+- Sort dashboard cards by triage level (L1 first) then by wait duration
+- Add `estimated_resolution_minutes` to problems table (based on CTAS level defaults)
+- Display on cards: "Est. ~15 min" based on problem type match
+
+### Phase 4 — Phone Number Association + BC Card Validation
+- On chat start, if phone number provided, lookup `patients.phone` in D1
+- Auto-load patient profile if match found
+- BC Services Card format validation (regex for BC card format)
+- Identity verification questions in AI conversation flow
+
+### Phase 5 — Temporary Auth + Link Generation
+- Generate temp token (`crypto.randomUUID`) stored in KV with 24h TTL
+- Provider clicks "Send Link" → generates URL with token
+- Patient opens link → authenticated session attached to phone number
