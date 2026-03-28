@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CarePoint — Feature Health Diagnostic</title>
+  <link rel="stylesheet" href="/health.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-left">
+      <a href="/" class="logo">CarePoint</a>
+      <span class="tagline">Feature Health Diagnostic</span>
+    </div>
+    <div class="topbar-right">
+      <button class="btn btn-primary" id="btn-run" onclick="runChecks()">Run All Checks</button>
+      <span class="last-run" id="last-run"></span>
+    </div>
+  </header>
+
+  <!-- Summary Bar -->
+  <div class="summary-bar" id="summary-bar">
+    <div class="summary-item" data-filter="all" onclick="filterByStatus('all')">
+      <span class="summary-count" id="count-total">—</span>
+      <span class="summary-label">Total</span>
+    </div>
+    <div class="summary-item" data-filter="green" onclick="filterByStatus('green')">
+      <span class="summary-dot dot-green"></span>
+      <span class="summary-count" id="count-green">—</span>
+      <span class="summary-label">Healthy</span>
+    </div>
+    <div class="summary-item" data-filter="yellow" onclick="filterByStatus('yellow')">
+      <span class="summary-dot dot-yellow"></span>
+      <span class="summary-count" id="count-yellow">—</span>
+      <span class="summary-label">Warning</span>
+    </div>
+    <div class="summary-item" data-filter="red" onclick="filterByStatus('red')">
+      <span class="summary-dot dot-red"></span>
+      <span class="summary-count" id="count-red">—</span>
+      <span class="summary-label">Failing</span>
+    </div>
+    <div class="summary-item" data-filter="grey" onclick="filterByStatus('grey')">
+      <span class="summary-dot dot-grey"></span>
+      <span class="summary-count" id="count-grey">—</span>
+      <span class="summary-label">Unchecked</span>
+    </div>
+    <div class="summary-item summary-score">
+      <span class="summary-count" id="health-score">—</span>
+      <span class="summary-label">Health Score</span>
+    </div>
+  </div>
+
+  <!-- Search + Filter -->
+  <div class="controls">
+    <input type="text" id="search-input" placeholder="Search features..." oninput="applyFilters()">
+    <select id="category-filter" onchange="applyFilters()">
+      <option value="all">All Categories</option>
+    </select>
+  </div>
+
+  <!-- Feature List -->
+  <main class="feature-list" id="feature-list">
+    <div class="loading" id="loading">Click "Run All Checks" to begin diagnostic...</div>
+  </main>
+
+  <!-- Diagnostic Modal -->
+  <div class="diag-modal" id="diag-modal" style="display:none">
+    <div class="diag-inner">
+      <div class="diag-header">
+        <h2 id="diag-title">Diagnosing...</h2>
+        <button class="btn btn-sm" onclick="closeDiag()">Close</button>
+      </div>
+      <div class="diag-body" id="diag-body">
+        <div class="loading">Running deep diagnosis...</div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/health.js"></script>
+</body>
+</html>

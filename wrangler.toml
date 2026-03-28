@@ -1,0 +1,38 @@
+# ============================================================
+# HealthLink Merged — Wrangler Configuration
+# ============================================================
+
+name = "healthlink-merged"
+main = "src/index.ts"
+compatibility_date = "2024-12-01"
+
+# ---------- Route (managed DNS, not custom_domain) ----------
+routes = [
+  { pattern = "healthlink-merged.madeonmerit.com/*", zone_name = "madeonmerit.com" }
+]
+
+# ---------- D1 Database ----------
+[[d1_databases]]
+binding = "DB"
+database_name = "healthlink-merged-db"
+database_id = "bd4fb1ae-e410-4b1c-958d-fd0fbf17c3b4"
+
+# ---------- KV Namespace ----------
+[[kv_namespaces]]
+binding = "KV"
+id = "8078475e757a4af7beab0f9253d70ad4"
+
+# ---------- R2 Bucket ----------
+[[r2_buckets]]
+binding = "R2"
+bucket_name = "healthlink-merged-assets"
+
+# ---------- Static Assets (frontend) ----------
+[assets]
+directory = "./frontend"
+
+# ---------- Environment Variables ----------
+[vars]
+ENVIRONMENT = "development"
+DEMO_MODE = "true"
+APP_NAME = "CarePoint"

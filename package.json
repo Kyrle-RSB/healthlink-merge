@@ -1,0 +1,23 @@
+{
+  "name": "healthlink-merged",
+  "version": "1.0.0",
+  "description": "HealthLink Merged — Cloudflare Worker at healthlink-merged.madeonmerit.com",
+  "private": true,
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "db:migrate": "wrangler d1 execute healthlink-merged-db --local --file=src/db/schema.sql",
+    "db:seed": "wrangler d1 execute healthlink-merged-db --local --file=src/db/seed.sql",
+    "db:migrate:remote": "wrangler d1 execute healthlink-merged-db --remote --file=src/db/schema.sql",
+    "db:seed:remote": "wrangler d1 execute healthlink-merged-db --remote --file=src/db/seed.sql",
+    "setup": "npm install && npm run db:migrate && npm run db:seed",
+    "typecheck": "tsc --noEmit",
+    "tail": "wrangler tail"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20241205.0",
+    "typescript": "^5.7.0",
+    "wrangler": "^3.99.0"
+  }
+}

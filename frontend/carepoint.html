@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CarePoint — AI Healthcare Navigation</title>
+  <link rel="stylesheet" href="/carepoint.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+</head>
+<body>
+  <a href="#chat-input" class="skip-link">Skip to chat</a>
+  <!-- ARIA live region for screen readers -->
+  <div id="aria-announcer" class="sr-only" aria-live="polite" aria-atomic="true"></div>
+  <!-- Top Bar -->
+  <header class="topbar">
+    <div class="topbar-left">
+      <h1 class="logo">CarePoint</h1>
+      <span class="tagline">AI Healthcare Navigation</span>
+      <span class="badge badge-mock">MOCK DATA</span>
+    </div>
+    <div class="topbar-right">
+      <div class="demo-controls">
+        <select id="demo-scenario" class="select-sm">
+          <option value="">Select Demo...</option>
+          <option value="maria">Maria — ER Diversion</option>
+          <option value="tyler">Tyler — Mental Health</option>
+          <option value="robert">Robert — Dynamic Reroute</option>
+          <option value="margaret">Margaret — Chest Pain (ER L1)</option>
+          <option value="jose">Jose — Ankle Injury (ER Override)</option>
+          <option value="tiffany">Tiffany — Abdominal Pain (UPCC)</option>
+          <option value="peter">Peter — Headaches (Family Dr)</option>
+          <option value="anna">Anna — Allergies (Pharmacy)</option>
+          <option value="lee">Lee — Cold Symptoms (811)</option>
+        </select>
+        <button id="btn-play" class="btn btn-sm btn-primary" onclick="playDemo()">Play</button>
+        <button id="btn-reset" class="btn btn-sm" onclick="resetDemo()">Reset</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Enhanced Notification Banner -->
+  <div class="sila-notification" id="sila-notification" style="display:none">
+    <div class="sila-notif-content">
+      <span class="sila-notif-icon">✨</span>
+      <span class="sila-notif-text">Good news! A nearby provider can see you now!</span>
+      <span class="sila-notif-countdown" id="sila-countdown">30</span>
+    </div>
+    <div class="sila-notif-actions">
+      <button class="sila-notif-accept" onclick="acceptSilaReroute()">Accept</button>
+      <button class="sila-notif-decline" onclick="declineSilaReroute()">Decline</button>
+    </div>
+    <div class="sila-notif-progress" id="sila-progress"></div>
+  </div>
+
+  <!-- Main Split Screen -->
+  <main class="split-screen">
+    <!-- LEFT: Patient Chat -->
+    <section class="panel panel-chat">
+      <div class="panel-header">
+        <h2>Patient Conversation</h2>
+        <div class="patient-selector">
+          <select id="patient-select" onchange="selectPatient(this.value)">
+            <option value="">New Patient (anonymous)</option>
+          </select>
+          <select id="lang-select" class="lang-toggle" onchange="setLanguage(this.value)" style="display:none">
+            <option value="en">English</option>
+            <option value="tl">Tagalog</option>
+            <option value="fr">French</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="chat-container" id="chat-messages" role="log" aria-label="Patient conversation" aria-live="polite">
+        <div class="chat-welcome">
+          <div class="welcome-icon">+</div>
+          <h3>Welcome to CarePoint</h3>
+          <p>Describe your health concern and we'll help you find the right care.</p>
+          <p class="text-muted">This is a demo with synthetic data — not real medical advice.</p>
+        </div>
+      </div>
+
+      <div class="chat-input-area">
+        <div id="typing-indicator" class="typing-indicator" style="display:none">
+          <span></span><span></span><span></span>
+          CarePoint is thinking...
+        </div>
+        <form id="chat-form" onsubmit="sendMessage(event)">
+          <input
+            type="text"
+            id="chat-input"
+            placeholder="Describe your symptoms or health concern..."
+            autocomplete="off"
+          >
+          <button type="submit" class="btn btn-primary" id="btn-send">Send</button>
+        </form>
+      </div>
+    </section>
+
+    <!-- RIGHT: System Dashboard -->
+    <section class="panel panel-dashboard">
+      <div class="panel-header">
+        <h2>System Dashboard</h2>
+        <span class="badge badge-live" id="live-indicator">LIVE</span>
+      </div>
+
+      <div class="dashboard-scroll" role="complementary" aria-label="System dashboard">
+        <!-- Routing Decision Card -->
+        <div class="card card-decision" id="decision-card" style="display:none">
+          <h3>Routing Decision</h3>
+          <div class="decision-content">
+            <div class="decision-destination" id="decision-destination"></div>
+            <div class="confidence-meter">
+              <div class="confidence-bar" id="confidence-bar"></div>
+              <span class="confidence-label" id="confidence-label"></span>
+            </div>
+            <div class="decision-facility" id="decision-facility"></div>
+            <div class="decision-reasoning" id="decision-reasoning"></div>
+            <div class="decision-alternatives" id="decision-alternatives"></div>
+          </div>
+        </div>
+
+        <!-- Triage Gauge Card -->
+        <div class="card triage-gauge-card" id="triage-gauge-card" style="display:none">
+          <h3>Triage Assessment</h3>
+          <div class="triage-gauge-content">
+            <svg viewBox="0 0 200 200" class="triage-gauge-svg">
+              <circle cx="100" cy="100" r="90" fill="none" stroke="var(--border)" stroke-width="8"/>
+              <circle cx="100" cy="100" r="90" fill="none" stroke="var(--triage-green)" stroke-width="8"
+                stroke-dasharray="0 565" stroke-linecap="round" transform="rotate(-90 100 100)" id="triage-arc"/>
+              <text x="100" y="95" text-anchor="middle" fill="var(--text)" font-size="36" font-weight="700" id="triage-score-text">0</text>
+              <text x="100" y="118" text-anchor="middle" fill="var(--text-muted)" font-size="12" id="triage-label-text">Calculating...</text>
+            </svg>
+            <div class="triage-level-badge" id="triage-level-badge"></div>
+            <div class="triage-care-routing" id="triage-care-routing"></div>
+          </div>
+        </div>
+
+        <!-- Sentiment Indicator -->
+        <div class="card card-sentiment" id="sentiment-card" style="display:none">
+          <h3>Patient Sentiment</h3>
+          <div class="sentiment-display" id="sentiment-display"></div>
+        </div>
+
+        <!-- Facility Status -->
+        <div class="card card-facilities">
+          <h3>Facility Status</h3>
+          <div class="facility-grid" id="facility-grid">
+            <div class="loading">Loading facilities...</div>
+          </div>
+        </div>
+
+        <!-- Facility Map -->
+        <div class="card card-map" id="map-card" style="display:none">
+          <h3>Facility Map</h3>
+          <div id="facility-map" style="height:250px;border-radius:var(--radius);overflow:hidden;"></div>
+          <div class="map-legend" id="map-legend"></div>
+        </div>
+
+        <!-- Multi-Call Grid Card -->
+        <div class="card card-calls" id="calls-card" style="display:none">
+          <h3>Active Calls <span class="live-badge">● LIVE</span></h3>
+          <div class="call-grid" id="call-grid"></div>
+        </div>
+
+        <!-- Session Feed -->
+        <div class="card card-sessions">
+          <h3>Recent Routing</h3>
+          <div class="session-feed" id="session-feed">
+            <div class="text-muted">No sessions yet</div>
+          </div>
+        </div>
+
+        <!-- Journey Comparison (shown after demos) -->
+        <div class="card card-journey" id="journey-card" style="display:none">
+          <h3>Patient Journey: Before vs After</h3>
+          <div class="journey-compare">
+            <div class="journey-before">
+              <div class="journey-label">Without CarePoint</div>
+              <div class="journey-step">1. Feel sick, don't know where to go</div>
+              <div class="journey-step">2. Call clinic #1 — closed</div>
+              <div class="journey-step">3. Call clinic #2 — 3 week wait</div>
+              <div class="journey-step">4. Call clinic #3 — on hold 20 min, hang up</div>
+              <div class="journey-step">5. Give up, go to ER</div>
+              <div class="journey-step bad">6. Wait 3-6 hours in ER</div>
+              <div class="journey-step bad">7. Leave without being seen (13% do)</div>
+              <div class="journey-time">Total: 4-7 hours wasted</div>
+            </div>
+            <div class="journey-after">
+              <div class="journey-label">With CarePoint</div>
+              <div class="journey-step good">1. Describe symptoms in one conversation</div>
+              <div class="journey-step good">2. AI matches to right care level</div>
+              <div class="journey-step good">3. See what's open NOW with wait times</div>
+              <div class="journey-step good">4. Go to matched facility</div>
+              <div class="journey-time good">Total: 5 min + facility wait</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Impact Card (shown after demos) -->
+        <div class="card card-impact" id="impact-card" style="display:none">
+          <h3>Impact Projection</h3>
+          <div id="impact-content"></div>
+        </div>
+
+        <!-- System Stats -->
+        <div class="card card-stats">
+          <h3>System Stats</h3>
+          <div class="stats-row">
+            <div class="stat">
+              <span class="stat-value" id="stat-active">0</span>
+              <span class="stat-label">Active</span>
+            </div>
+            <div class="stat">
+              <span class="stat-value" id="stat-routed">0</span>
+              <span class="stat-label">Routed</span>
+            </div>
+            <div class="stat">
+              <span class="stat-value" id="stat-diverted">0</span>
+              <span class="stat-label">ER Diverted</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Phone Simulator Drawer -->
+  <div class="phone-drawer" id="phone-drawer" style="display:none">
+    <div class="phone-drawer-toggle" id="phone-toggle" title="Toggle patient phone view">📱</div>
+    <div class="phone-frame">
+      <div class="phone-notch"></div>
+      <div class="phone-screen">
+        <div class="phone-status-bar">
+          <span>BC Health</span>
+          <span id="phone-time"></span>
+        </div>
+        <div class="phone-caller">
+          <div class="phone-caller-name">BC Health Line</div>
+          <div class="phone-caller-sub">On call with AI Health Assistant</div>
+          <div class="phone-duration" id="phone-duration">00:00:00</div>
+        </div>
+        <div class="phone-waveform" id="phone-waveform">
+          <!-- 8 waveform bars injected by JS -->
+        </div>
+        <div class="phone-controls">
+          <button class="phone-ctrl-btn">🎤</button>
+          <button class="phone-ctrl-btn phone-end-btn">📞</button>
+          <button class="phone-ctrl-btn">🔊</button>
+        </div>
+      </div>
+      <div class="phone-home-indicator"></div>
+    </div>
+  </div>
+
+  <!-- Call Transcription Modal -->
+  <div class="call-modal" id="call-modal" style="display:none">
+    <div class="call-modal-inner">
+      <!-- Left: Transcript -->
+      <div class="call-col call-transcript-col">
+        <div class="call-col-header">
+          <h3>Live Transcript</h3>
+          <span class="recording-status rs-stopped" id="recording-status">Stopped</span>
+        </div>
+        <div class="transcript-lines" id="transcript-lines"></div>
+        <div class="transcript-controls">
+          <button class="btn btn-sm btn-primary" id="btn-record" onclick="toggleRecording()">Start Recording</button>
+          <div class="quick-responses" id="quick-responses"></div>
+        </div>
+      </div>
+      <!-- Right: AI Suggestions -->
+      <div class="call-col call-suggest-col">
+        <div class="call-col-header">
+          <h3>Agent Assist</h3>
+          <button class="btn btn-sm" onclick="closeCallModal()">&times;</button>
+        </div>
+        <div class="suggestions-panel" id="suggestions-panel">
+          <div class="suggest-empty">Listening for conversation...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/call-transcribe.js"></script>
+  <script src="/carepoint.js"></script>
+</body>
+</html>
