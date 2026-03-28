@@ -597,8 +597,27 @@ async function playMessages(messages, container, onCheck) {
 }
 
 function waitForClick(selector, callback) {
-  const el = typeof selector === 'string' ? $(selector) : selector;
+  let el = typeof selector === 'string' ? $(selector) : selector;
+  if (!el && typeof selector === 'string') {
+    // Element not found yet — retry up to 10 times over 2 seconds
+    let retries = 0;
+    const retryInterval = setInterval(() => {
+      el = $(selector);
+      retries++;
+      if (el) {
+        clearInterval(retryInterval);
+        registerClickHandler(el, callback);
+      } else if (retries >= 10) {
+        clearInterval(retryInterval);
+        console.warn('waitForClick: element not found after retries:', selector);
+      }
+    }, 200);
+    return;
+  }
   if (!el) return;
+  registerClickHandler(el, callback);
+}
+function registerClickHandler(el, callback) {
   el.classList.add('clickable');
   const handler = () => {
     el.classList.remove('clickable');
