@@ -548,9 +548,13 @@ function getSortedPatients() {
   });
 }
 
+let lastSortOrder = '';
 function reorderGrid() {
-  const grid = document.getElementById('grid');
   const sorted = getSortedPatients();
+  const newOrder = sorted.map(p => p.id).join(',');
+  if (newOrder === lastSortOrder) return; // no change, skip DOM manipulation
+  lastSortOrder = newOrder;
+  const grid = document.getElementById('grid');
   sorted.forEach(p => {
     const card = document.getElementById('card-' + p.id);
     if (card) grid.appendChild(card);
@@ -605,15 +609,20 @@ function renderGrid() {
     const wantSelected = selectedCallId === p.id ? ' selected' : '';
     const newClass = 'call-card' + wantActive + wantSelected;
     if (card.className !== newClass) card.className = newClass;
-    // Update badge
+    // Update badge only when status changes
     const badge = document.getElementById('badge-' + p.id);
-    if (badge) { badge.style.background = sb.bg; badge.style.color = sb.color; badge.textContent = sb.emoji + ' ' + sb.label; }
-    // Update gauge
+    const badgeText = sb.emoji + ' ' + sb.label;
+    if (badge && badge.textContent !== badgeText) { badge.style.background = sb.bg; badge.style.color = sb.color; badge.textContent = badgeText; }
+    // Update gauge only when score changes
     const gauge = document.getElementById('gauge-' + p.id);
-    if (gauge) gauge.innerHTML = miniGaugeSVG(displayScore, p.triageColor);
+    if (gauge && gauge.dataset.score !== String(displayScore)) {
+      gauge.innerHTML = miniGaugeSVG(displayScore, p.triageColor);
+      gauge.dataset.score = String(displayScore);
+    }
     // Update timer
     const timer = document.getElementById('timer-' + p.id);
-    if (timer) timer.textContent = cs.started ? formatDuration(cs.duration) : '--:--';
+    const timerText = cs.started ? formatDuration(cs.duration) : '--:--';
+    if (timer && timer.textContent !== timerText) timer.textContent = timerText;
   });
   // Reorder cards by urgency
   reorderGrid();
@@ -785,18 +794,24 @@ function renderSplit() {
     tb.scrollTop = tb.scrollHeight;
   }
 
-  // Triage gauge
+  // Triage gauge — only update when score changes
   const spGauge = document.getElementById('sp-gauge');
-  if (spGauge) spGauge.innerHTML = largeGaugeSVG(displayScore, p.triageColor);
+  if (spGauge && spGauge.dataset.score !== String(displayScore)) {
+    spGauge.innerHTML = largeGaugeSVG(displayScore, p.triageColor);
+    spGauge.dataset.score = String(displayScore);
+  }
 
-  // Phone timer
+  // Phone timer — only update when text changes
   const spTimer = document.getElementById('sp-phone-timer');
-  if (spTimer) spTimer.textContent = cs.started ? formatDurationLong(cs.duration) : '00:00:00';
+  const spTimerText = cs.started ? formatDurationLong(cs.duration) : '00:00:00';
+  if (spTimer && spTimer.textContent !== spTimerText) spTimer.textContent = spTimerText;
 
-  // Speaking indicator
+  // Speaking indicator — only update when state changes
   const isActive = ['connected','verifying','assessing'].includes(cs.status);
   const spSpeaking = document.getElementById('sp-speaking');
-  if (spSpeaking) {
+  const speakingText = isActive ? (cs.transcriptIndex % 2 === 0 ? 'assistant' : 'listening') : (cs.status==='complete' ? 'ended' : 'waiting');
+  if (spSpeaking && spSpeaking.dataset.state !== speakingText) {
+    spSpeaking.dataset.state = speakingText;
     spSpeaking.innerHTML = isActive
       ? '<div class="speaking-dot"></div><span>' + (cs.transcriptIndex % 2 === 0 ? 'Assistant speaking' : 'Listening...') + '</span>'
       : '<span>' + (cs.status==='complete' ? 'Call ended' : 'Waiting...') + '</span>';
@@ -873,7 +888,7 @@ function startDemo() {
     }, delays[i]);
   });
 
-  // Duration timer
+  // Duration timer — lightweight update, no full re-render
   durationInterval = setInterval(() => {
     PATIENTS.forEach(p => {
       const cs = callStates[p.id];
@@ -881,7 +896,27 @@ function startDemo() {
         cs.duration++;
       }
     });
-    renderAll();
+    // Only update timer text + phone timer — skip full renderAll
+    if (currentView === 'dashboard') {
+      PATIENTS.forEach(p => {
+        const cs = callStates[p.id];
+        const timer = document.getElementById('timer-' + p.id);
+        if (timer) timer.textContent = cs.started ? formatDuration(cs.duration) : '--:--';
+      });
+    } else if (currentView === 'split' && selectedCallId) {
+      const cs = callStates[selectedCallId];
+      const spTimer = document.getElementById('sp-phone-timer');
+      if (spTimer && cs) spTimer.textContent = cs.started ? formatDurationLong(cs.duration) : '00:00:00';
+    }
+    // Update bottom bar timers
+    PATIENTS.forEach(p => {
+      const cs = callStates[p.id];
+      const bbStatus = document.getElementById('bbstatus-' + p.id);
+      if (bbStatus) {
+        const sb = getStatusBadge(cs.status);
+        if (bbStatus.textContent !== sb.label) bbStatus.textContent = sb.label;
+      }
+    });
   }, 1000);
 
   // Transcript advancement every 3s
