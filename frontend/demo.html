@@ -1,0 +1,1277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CarePoint — Guided Investor Demo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+--bg:#0F172A;--card:#1E293B;--border:#334155;--accent:#38BDF8;
+--text:#F1F5F9;--text-dim:#94A3B8;--yellow:#FCBA19;
+--red:#EF4444;--orange:#F97316;--amber:#EAB308;--green:#22C55E;
+--blue:#3B82F6;--purple:#A855F7;--cyan:#06B6D4;--teal:#10B981;
+}
+html,body{height:100%;overflow:hidden;font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text)}
+
+/* ========== ANIMATIONS ========== */
+@keyframes pulse-glow{0%,100%{box-shadow:0 0 5px rgba(34,197,94,.3)}50%{box-shadow:0 0 20px rgba(34,197,94,.6)}}
+@keyframes pulse-glow-amber{0%,100%{box-shadow:0 0 5px rgba(249,115,22,.3)}50%{box-shadow:0 0 20px rgba(249,115,22,.6)}}
+@keyframes pulse-soft{0%,100%{opacity:1}50%{opacity:.5}}
+@keyframes float{0%,100%{transform:translateY(0) rotate(0deg)}33%{transform:translateY(-18px) rotate(5deg)}66%{transform:translateY(8px) rotate(-3deg)}}
+@keyframes fade-in{from{opacity:0}to{opacity:1}}
+@keyframes slide-in-top{from{opacity:0;transform:translateY(-30px)}to{opacity:1;transform:translateY(0)}}
+@keyframes bounce-in{0%{opacity:0;transform:scale(.3)}50%{transform:scale(1.05)}70%{transform:scale(.95)}100%{opacity:1;transform:scale(1)}}
+@keyframes gradient-shift{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes pulse-ring{0%{transform:scale(1);opacity:.6}100%{transform:scale(1.4);opacity:0}}
+@keyframes slide-up{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+@keyframes slide-down{from{opacity:0;transform:translateY(-20px)}to{opacity:1;transform:translateY(0)}}
+@keyframes typing-dot{0%,60%,100%{transform:translateY(0);opacity:.4}30%{transform:translateY(-6px);opacity:1}}
+@keyframes checkmark-pop{0%{transform:scale(0)}60%{transform:scale(1.2)}100%{transform:scale(1)}}
+@keyframes clickable-ring{0%{box-shadow:0 0 0 0 rgba(56,189,248,.6)}70%{box-shadow:0 0 0 10px rgba(56,189,248,0)}100%{box-shadow:0 0 0 0 rgba(56,189,248,0)}}
+@keyframes counter-pop{0%{transform:scale(1)}50%{transform:scale(1.3)}100%{transform:scale(1)}}
+@keyframes row-slide{from{opacity:0;transform:translateX(-30px)}to{opacity:1;transform:translateX(0)}}
+@keyframes glow-border{0%,100%{border-color:rgba(56,189,248,.3)}50%{border-color:rgba(56,189,248,.8)}}
+
+/* ========== GLASS ========== */
+.glass{background:rgba(30,41,59,.6);backdrop-filter:blur(12px);border:1px solid var(--border);border-radius:12px}
+.glass-dark{background:rgba(15,23,42,.8);backdrop-filter:blur(12px);border:1px solid var(--border);border-radius:12px}
+
+/* ========== LAUNCH ========== */
+#launch-screen{position:fixed;inset:0;z-index:2000;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity .6s}
+#launch-screen.hidden{opacity:0;pointer-events:none}
+.launch-orb{position:absolute;border-radius:50%;filter:blur(80px);opacity:.15;pointer-events:none}
+.launch-orb-1{width:500px;height:500px;background:var(--accent);top:-10%;left:-10%;animation:float 12s ease-in-out infinite}
+.launch-orb-2{width:400px;height:400px;background:var(--purple);bottom:-10%;right:-10%;animation:float 10s ease-in-out infinite 2s}
+.launch-orb-3{width:300px;height:300px;background:var(--teal);top:50%;left:60%;animation:float 14s ease-in-out infinite 4s}
+.launch-logo{width:120px;height:120px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--purple));padding:4px;margin-bottom:24px;animation:bounce-in .8s ease-out}
+.launch-logo-inner{width:100%;height:100%;border-radius:50%;background:var(--bg);display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:800;color:var(--accent)}
+.launch-title{font-size:48px;font-weight:800;background:linear-gradient(135deg,var(--accent),var(--purple),var(--teal));background-size:200% 200%;-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;animation:gradient-shift 4s ease infinite;margin-bottom:8px}
+.launch-subtitle{font-size:18px;color:var(--text-dim);margin-bottom:48px;letter-spacing:.5px}
+.start-btn{background:var(--yellow);color:#0F172A;border:none;padding:18px 56px;border-radius:14px;font-size:20px;font-weight:700;cursor:pointer;transition:all .3s;font-family:inherit;letter-spacing:.5px}
+.start-btn:hover{transform:translateY(-2px);box-shadow:0 8px 30px rgba(252,186,25,.3)}
+
+/* ========== HEADER ========== */
+#demo-header{position:fixed;top:0;left:0;right:0;z-index:100;height:56px;background:rgba(15,23,42,.85);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);padding:0 24px;display:none;align-items:center;justify-content:space-between}
+#demo-header::after{content:'';position:absolute;bottom:-2px;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--accent),var(--purple),var(--teal));background-size:200% 100%;animation:gradient-shift 4s linear infinite}
+#demo-header.visible{display:flex}
+.hdr-left{display:flex;align-items:center;gap:12px}
+.hdr-logo{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--purple));display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:#fff}
+.hdr-brand{font-size:16px;font-weight:700}
+.hdr-scene{font-size:13px;color:var(--text-dim);margin-left:12px;padding-left:12px;border-left:1px solid var(--border)}
+.hdr-right{display:flex;align-items:center;gap:12px}
+#continue-btn{background:var(--accent);color:#0F172A;border:none;padding:8px 20px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .3s;display:none}
+#continue-btn:hover{background:#7dd3fc;transform:translateY(-1px)}
+#continue-btn.visible{display:flex;align-items:center;gap:6px}
+
+/* ========== SCREENS ========== */
+.screen{position:fixed;top:56px;left:0;right:0;bottom:0;display:none;opacity:0;transition:opacity .5s}
+.screen.active{display:flex;opacity:1}
+
+/* Phone Only */
+#screen-phone-only{background:#000;align-items:center;justify-content:center}
+
+/* Split */
+#screen-split{background:var(--bg)}
+#split-phone{width:40%;background:#000;display:flex;align-items:center;justify-content:center;padding:20px}
+#split-provider{width:60%;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:14px}
+
+/* Dashboard */
+#screen-dashboard{background:var(--bg);flex-direction:column;padding:24px 40px;overflow-y:auto}
+
+/* Closing */
+#screen-closing{background:var(--bg);align-items:center;justify-content:center;flex-direction:column;padding:40px}
+
+/* ========== PHONE FRAME ========== */
+#the-phone{z-index:10}
+.phone-frame{width:100%;max-width:300px;aspect-ratio:9/19;background:#111;border:3px solid #444;border-radius:36px;position:relative;display:flex;flex-direction:column;overflow:hidden}
+.phone-notch{width:120px;height:28px;background:#000;border-radius:0 0 16px 16px;margin:0 auto;flex-shrink:0}
+.phone-status-bar{text-align:center;font-size:11px;font-weight:600;color:var(--accent);padding:4px 0 6px;border-bottom:1px solid #222;flex-shrink:0;background:#111}
+#phone-messages{flex:1;overflow-y:auto;padding:10px 12px;display:flex;flex-direction:column;gap:8px}
+.phone-home{width:120px;height:4px;background:#555;border-radius:2px;margin:8px auto;flex-shrink:0}
+
+/* Chat Bubbles */
+.bubble{max-width:82%;padding:9px 13px;border-radius:16px;font-size:13px;line-height:1.5;animation:slide-up .3s ease-out}
+.bubble-patient{background:var(--blue);color:#fff;align-self:flex-end;border-bottom-right-radius:4px;margin-left:auto}
+.bubble-ai{background:var(--card);color:var(--text);align-self:flex-start;border-bottom-left-radius:4px;border:1px solid #333}
+.bubble-label{font-size:9px;font-weight:600;margin-bottom:2px;opacity:.7}
+.bubble-facility{background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.3);border-radius:12px;padding:10px 13px;align-self:flex-start;margin-top:4px;animation:slide-up .3s ease-out}
+.bubble-facility .fac-name{font-size:13px;font-weight:600;color:var(--green)}
+.bubble-facility .fac-addr{font-size:11px;color:var(--text-dim);margin-top:2px}
+.bubble-facility .fac-note{font-size:11px;color:var(--text-dim);margin-top:4px;font-style:italic}
+
+/* Wait status card */
+.wait-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px;align-self:stretch;margin-top:6px;animation:slide-up .3s ease-out}
+.wait-card h4{font-size:13px;font-weight:700;margin-bottom:10px;color:var(--accent)}
+.wait-row{display:flex;justify-content:space-between;font-size:12px;padding:4px 0;border-bottom:1px solid rgba(255,255,255,.05)}
+.wait-row:last-child{border-bottom:none}
+.wait-label{color:var(--text-dim)}
+.wait-val{font-weight:600}
+.wait-reasons{margin-top:8px;padding-top:8px;border-top:1px solid var(--border)}
+.wait-reasons li{font-size:11px;color:var(--text-dim);margin:4px 0;padding-left:12px;position:relative;list-style:none}
+.wait-reasons li::before{content:'';width:4px;height:4px;border-radius:50%;background:var(--text-dim);position:absolute;left:0;top:6px}
+.wait-explain{font-size:11px;color:var(--text-dim);margin-top:8px;padding:8px;background:rgba(56,189,248,.05);border-radius:6px;font-style:italic}
+
+/* Reroute notification on phone */
+.reroute-phone-card{background:rgba(56,189,248,.1);border:1px solid rgba(56,189,248,.3);border-radius:14px;padding:14px;align-self:stretch;margin-top:6px;animation:slide-down .4s ease-out}
+.reroute-phone-card p{font-size:12px;line-height:1.5;color:var(--text);margin-bottom:10px}
+.reroute-phone-btns{display:flex;gap:8px}
+.reroute-phone-btns button{flex:1;padding:8px;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit}
+.reroute-accept{background:var(--accent);color:#0F172A}
+.reroute-stay{background:rgba(255,255,255,.1);color:var(--text)}
+
+/* Typing Indicator */
+#phone-typing{display:none;align-self:flex-start;padding:10px 16px;background:var(--card);border-radius:16px;border-bottom-left-radius:4px;border:1px solid #333}
+#phone-typing span{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--text-dim);margin:0 2px;animation:typing-dot 1.4s infinite}
+#phone-typing span:nth-child(2){animation-delay:.2s}
+#phone-typing span:nth-child(3){animation-delay:.4s}
+
+/* ========== PROVIDER PANEL STYLES ========== */
+
+/* Checklist */
+.checklist{list-style:none;padding:0}
+.checklist li{display:flex;align-items:center;gap:10px;padding:10px 14px;font-size:14px;color:var(--text-dim);border-bottom:1px solid rgba(255,255,255,.04);transition:color .3s}
+.checklist li.done{color:var(--green)}
+.check-icon{width:22px;height:22px;border-radius:6px;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:12px;transition:all .3s;flex-shrink:0}
+.checklist li.done .check-icon{background:var(--green);border-color:var(--green);color:#fff;animation:checkmark-pop .4s ease-out}
+
+/* Patient Card */
+.patient-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px;cursor:pointer;transition:all .3s;position:relative;overflow:hidden}
+.patient-card:hover{border-color:var(--accent);transform:translateY(-2px)}
+.pc-top{display:flex;align-items:center;gap:12px;margin-bottom:10px}
+.pc-avatar{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;color:#fff;flex-shrink:0}
+.pc-info{flex:1}
+.pc-name{font-size:15px;font-weight:600}
+.pc-meta{font-size:12px;color:var(--text-dim)}
+.pc-complaint{font-size:13px;color:var(--text-dim);margin-bottom:8px;line-height:1.4}
+.pc-triage{display:flex;align-items:center;gap:12px;margin-bottom:8px}
+.pc-score{font-size:24px;font-weight:800;font-variant-numeric:tabular-nums}
+.pc-level{font-size:12px;font-weight:600;padding:3px 10px;border-radius:6px;color:#fff}
+.pc-confidence{font-size:11px;color:var(--text-dim)}
+.pc-status{font-size:12px;color:var(--accent);font-weight:500;margin-top:6px}
+.pc-assessment{font-size:12px;color:var(--text-dim);line-height:1.5;margin-top:8px;padding-top:8px;border-top:1px solid var(--border)}
+
+/* Patient File */
+.pf-section{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px}
+.pf-section h4{font-size:12px;font-weight:700;color:var(--accent);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px}
+.pf-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.pf-item{font-size:12px}
+.pf-label{color:var(--text-dim)}
+.pf-val{font-weight:500}
+.pf-list{list-style:none;padding:0}
+.pf-list li{font-size:12px;color:var(--text);padding:2px 0}
+
+/* AI Assessment card */
+.ai-card{background:rgba(56,189,248,.05);border:1px solid rgba(56,189,248,.2);border-radius:12px;padding:14px;position:relative}
+.ai-card h4{font-size:12px;font-weight:700;color:var(--accent);margin-bottom:6px;display:flex;align-items:center;gap:6px}
+.ai-card p{font-size:13px;line-height:1.5;color:var(--text)}
+
+/* AI Insight Card */
+.ai-insight{background:rgba(168,85,247,.08);border:1px solid rgba(168,85,247,.25);border-radius:12px;padding:14px;animation:slide-up .4s ease-out}
+.ai-insight h4{font-size:12px;font-weight:700;color:var(--purple);margin-bottom:6px;display:flex;align-items:center;gap:6px}
+.ai-insight p{font-size:13px;line-height:1.5;color:var(--text)}
+
+/* Conversation View */
+.conv-transcript{max-height:200px;overflow-y:auto;padding:10px;background:rgba(0,0,0,.2);border-radius:8px;margin-bottom:12px;opacity:.6}
+.conv-msg{font-size:11px;padding:4px 0;line-height:1.4;color:var(--text-dim)}
+.conv-msg strong{color:var(--text);font-weight:600}
+
+/* Pills */
+.pills{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.pill{background:rgba(56,189,248,.1);border:1px solid rgba(56,189,248,.3);color:var(--accent);padding:8px 14px;border-radius:20px;font-size:12px;font-weight:500;cursor:pointer;transition:all .2s;font-family:inherit}
+.pill:hover{background:rgba(56,189,248,.2);transform:translateY(-1px)}
+
+/* Provider conversation messages */
+.prov-msg{padding:8px 12px;border-radius:10px;font-size:13px;line-height:1.5;margin-bottom:6px;animation:slide-up .3s ease-out}
+.prov-msg-provider{background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.2);align-self:flex-end}
+.prov-msg-provider .pm-label{color:var(--green);font-size:10px;font-weight:600;margin-bottom:2px}
+.prov-msg-patient{background:rgba(148,163,184,.08);border:1px solid rgba(148,163,184,.12)}
+.prov-msg-patient .pm-label{color:var(--text-dim);font-size:10px;font-weight:600;margin-bottom:2px}
+
+/* Routing Card */
+.route-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;transition:all .3s}
+.route-card.recommended{border-color:var(--green);background:rgba(34,197,94,.05)}
+.route-card h4{font-size:14px;font-weight:600;margin-bottom:6px}
+.route-card .rc-detail{font-size:12px;color:var(--text-dim);padding:3px 0;display:flex;align-items:center;gap:6px}
+.route-card .rc-badge{display:inline-block;font-size:10px;font-weight:600;padding:2px 8px;border-radius:4px;background:var(--green);color:#fff;margin-bottom:6px}
+.route-alt{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px;font-size:12px}
+.route-alt h5{font-size:13px;font-weight:600;margin-bottom:4px}
+.route-alt p{color:var(--text-dim);font-size:11px}
+
+/* Action Buttons */
+.action-btn{background:var(--accent);color:#0F172A;border:none;padding:10px 24px;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .3s;width:100%;margin-top:10px}
+.action-btn:hover{background:#7dd3fc;transform:translateY(-1px)}
+.action-btn.green{background:var(--green)}
+.action-btn.green:hover{background:#4ade80}
+
+/* Map */
+.map-container{border-radius:12px;overflow:hidden;height:220px;border:1px solid var(--border);position:relative}
+#routing-map,#routing-map-2{width:100%;height:100%}
+.leaflet-tile-pane{filter:invert(1) hue-rotate(200deg) saturate(.8) brightness(.9)}
+.leaflet-control-attribution{display:none!important}
+.leaflet-control-zoom{border:1px solid var(--border)!important}
+.leaflet-control-zoom a{background:var(--card)!important;color:var(--text)!important;border-color:var(--border)!important}
+
+/* Reroute provider banner */
+.reroute-banner{background:rgba(56,189,248,.1);border:1px solid rgba(56,189,248,.3);border-radius:12px;padding:16px;animation:slide-down .4s ease-out;display:flex;align-items:center;gap:12px}
+.reroute-banner .rb-icon{font-size:24px;flex-shrink:0}
+.reroute-banner .rb-text{flex:1;font-size:13px;line-height:1.5}
+.reroute-banner .rb-action{flex-shrink:0}
+
+/* ========== CLICKABLE HIGHLIGHT ========== */
+.clickable{animation:clickable-ring 1.5s ease-out infinite;cursor:pointer;position:relative}
+
+/* ========== DASHBOARD CAPACITY ========== */
+.dash-title{font-size:28px;font-weight:800;text-align:center;margin-bottom:24px;background:linear-gradient(135deg,var(--accent),var(--purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.cap-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;max-width:900px;margin:0 auto 24px}
+.cap-bar-wrap{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px}
+.cap-bar-label{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.cap-bar-name{font-size:13px;font-weight:600}
+.cap-bar-type{font-size:10px;color:var(--text-dim);padding:2px 6px;border-radius:4px;background:rgba(255,255,255,.05)}
+.cap-bar-pct{font-size:13px;font-weight:700;font-variant-numeric:tabular-nums}
+.cap-bar-track{height:8px;background:rgba(255,255,255,.08);border-radius:4px;overflow:hidden}
+.cap-bar-fill{height:100%;border-radius:4px;transition:width 2s ease,background-color 2s ease}
+
+/* Counter */
+.counter-box{text-align:center;margin:24px auto;padding:20px 40px;border-radius:14px;background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.2);max-width:400px}
+.counter-label{font-size:14px;color:var(--text-dim);margin-bottom:6px}
+.counter-val{font-size:56px;font-weight:800;color:var(--green);font-variant-numeric:tabular-nums}
+
+/* What If */
+.whatif{display:flex;gap:20px;max-width:600px;margin:20px auto;justify-content:center}
+.whatif-card{flex:1;padding:16px 24px;border-radius:12px;text-align:center}
+.whatif-card.bad{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3)}
+.whatif-card.good{background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.3)}
+.whatif-title{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:var(--text-dim);margin-bottom:4px}
+.whatif-val{font-size:28px;font-weight:800}
+.whatif-card.bad .whatif-val{color:var(--red)}
+.whatif-card.good .whatif-val{color:var(--green)}
+
+/* ========== CLOSING ========== */
+.closing-table{width:100%;max-width:900px;border-collapse:separate;border-spacing:0 6px}
+.closing-table th{font-size:14px;font-weight:700;padding:12px 20px;text-align:left}
+.closing-table th:first-child{color:var(--red)}
+.closing-table th:last-child{color:var(--green)}
+.closing-table td{background:var(--card);padding:12px 20px;font-size:13px;line-height:1.5}
+.closing-table tr td:first-child{border-radius:8px 0 0 8px;color:var(--text-dim);border:1px solid var(--border);border-right:none}
+.closing-table tr td:last-child{border-radius:0 8px 8px 0;color:var(--text);border:1px solid var(--border);border-left:none}
+.closing-final{max-width:700px;text-align:center;font-size:18px;font-weight:500;line-height:1.7;color:var(--text);margin-top:32px;opacity:0;transition:opacity 1s}
+.closing-final.visible{opacity:1}
+
+/* Scrollbar */
+::-webkit-scrollbar{width:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+</style>
+</head>
+<body id="demo-root">
+
+<!-- ===== LAUNCH SCREEN ===== -->
+<div id="launch-screen">
+  <div class="launch-orb launch-orb-1"></div>
+  <div class="launch-orb launch-orb-2"></div>
+  <div class="launch-orb launch-orb-3"></div>
+  <div class="launch-logo"><div class="launch-logo-inner">CP</div></div>
+  <div class="launch-title">CarePoint</div>
+  <div class="launch-subtitle">AI Healthcare Navigation for British Columbia</div>
+  <button class="start-btn" onclick="beginDemo()">Start Demo</button>
+</div>
+
+<!-- ===== HEADER ===== -->
+<div id="demo-header">
+  <div class="hdr-left">
+    <div class="hdr-logo">CP</div>
+    <span class="hdr-brand">CarePoint</span>
+    <span class="hdr-scene" id="scene-label">--</span>
+  </div>
+  <div class="hdr-right">
+    <button id="continue-btn" onclick="advance()">Click to Continue <span style="margin-left:4px">&rarr;</span></button>
+  </div>
+</div>
+
+<!-- ===== SCREEN: Phone Only ===== -->
+<div id="screen-phone-only" class="screen"></div>
+
+<!-- ===== SCREEN: Split View ===== -->
+<div id="screen-split" class="screen">
+  <div id="split-phone"></div>
+  <div id="split-provider"></div>
+</div>
+
+<!-- ===== SCREEN: Dashboard ===== -->
+<div id="screen-dashboard" class="screen" style="display:none;flex-direction:column;padding:24px 40px;overflow-y:auto"></div>
+
+<!-- ===== SCREEN: Closing ===== -->
+<div id="screen-closing" class="screen" style="display:none;align-items:center;justify-content:center;flex-direction:column;padding:40px;overflow-y:auto"></div>
+
+<!-- ===== SHARED PHONE ===== -->
+<div id="the-phone">
+  <div class="phone-frame">
+    <div class="phone-notch"></div>
+    <div class="phone-status-bar">CarePoint AI</div>
+    <div id="phone-messages"></div>
+    <div id="phone-typing"><span></span><span></span><span></span></div>
+    <div class="phone-home"></div>
+  </div>
+</div>
+
+<script>
+// ==================== DATA ====================
+const MARIA = {
+  name:'Maria Santos',initials:'MS',age:34,sex:'F',
+  dob:'March 15, 1992',language:'Tagalog (English conversational)',
+  healthCard:'None \u2014 newcomer, insurance pending',location:'Victoria, BC',
+  conditions:['None on record'],meds:['None'],allergies:['Sulfa drugs'],
+  complaint:'Dull/cramping abdominal pain x3 weeks, worse after eating, associated nausea',
+  triageScore:42,triageLevel:4,triageLevelText:'Level 4 \u2014 Semi-Urgent',
+  triageColor:'#EAB308',confidence:91,
+  aiAssessment:'Possible functional dyspepsia or dietary adjustment issue. Low risk for acute abdomen. No red flags (no fever, no vomiting, no blood, no weight loss).',
+  recommendation:'Community health centre or walk-in clinic. Patient is a newcomer without insurance \u2014 route to facility with translation services and newcomer programs.',
+  intake1:[
+    {role:'patient',text:"Hi, I have had stomach pain for about 3 weeks. I moved here from the Philippines 2 months ago. I don't have a family doctor and my insurance hasn't started yet. I don't know where to go."},
+    {role:'ai',text:"Hi Maria, I'm here to help. I'll ask you a few questions so we can find the right care for you. First \u2014 can you tell me your BC Services Card number, or if you don't have one yet, your date of birth?"},
+    {role:'patient',text:"I don't have a card yet. My birthday is March 15, 1992."},
+  ],
+  intake2:[
+    {role:'ai',text:"Can you describe the pain? Is it sharp, dull, burning, or cramping?",check:null},
+    {role:'patient',text:"It's like a dull ache, sometimes cramping after I eat.",check:2},
+    {role:'ai',text:"Any nausea, vomiting, fever, or blood in your stool?",check:null},
+    {role:'patient',text:"Some nausea but no vomiting. No fever or blood.",check:null},
+    {role:'ai',text:"Are you taking any medications currently?",check:null},
+    {role:'patient',text:"No medications.",check:3},
+    {role:'ai',text:"Do you have any known medical conditions or allergies?",check:null},
+    {role:'patient',text:"No conditions. I'm allergic to sulfa drugs.",check:4},
+  ],
+  checklist:['Identity Verified','Healthcare Status Validated','Symptoms Collected','History Reviewed','Triage Recommendation Ready'],
+  pills:{
+    initial:[
+      {id:'pain_change',text:'Is the pain getting worse, better, or staying the same?'},
+      {id:'diet',text:'Have you changed your diet since moving to Canada?'},
+      {id:'stress',text:'Any stress or difficulty sleeping?'},
+    ],
+    afterDiet:[
+      {id:'specific_foods',text:'Have you noticed the pain is worse with specific foods?'},
+      {id:'bloating',text:'Any bloating or gas?'},
+    ],
+  },
+  responses:{
+    diet:"Yes, I've been eating very different food. More bread, more dairy. In the Philippines I mostly ate rice and fish.",
+    bloating:"Yes, actually. A lot of bloating after milk or cheese.",
+  },
+  aiInsight:"Pattern detected: Dietary change + bloating with dairy \u2192 possible lactose intolerance. Common in Southeast Asian populations (>90% prevalence). Recommend dietary counseling at community health centre.",
+  routing:{
+    recommended:{name:'Cool Aid Community Health Centre',wait:'~45 min',services:'Translation (Tagalog), newcomer health programs, no insurance required',distance:'12 min drive',address:'713 Johnson St, Victoria',lat:48.4284,lng:-123.3656},
+    alt1:{name:'Victoria Walk-In Clinic',wait:'30 min',note:'No translation services',distance:'8 min drive'},
+    alt2:{name:'Virtual Care (Telus Health)',wait:'15 min',note:'English only',distance:'Virtual'},
+  },
+  routingMessage:"Maria, based on our conversation, we recommend Cool Aid Community Health Centre. They can see you in about 45 minutes, they have Tagalog translation services, and they serve newcomers without insurance. Here's the address and directions. If your symptoms get worse \u2014 severe pain, vomiting, fever, or blood \u2014 go to the nearest ER or call 911 immediately.",
+};
+
+const ROBERT = {
+  name:'Robert Chen',initials:'RC',age:58,sex:'M',
+  dob:'July 22, 1968',healthCard:'9876 543 210',
+  conditions:['Type 2 Diabetes','Hypertension'],meds:['Metformin 1000mg','Lisinopril 10mg'],
+  allergies:['None known'],labs:'HbA1c 8.2, fasting glucose 11.2',
+  complaint:'Numbness and tingling in both feet, worsening over 2 weeks',
+  triageScore:55,triageLevel:3,triageLevelText:'Level 3 \u2014 Urgent',
+  triageColor:'#F97316',confidence:88,
+  aiAssessment:'Diabetic peripheral neuropathy \u2014 needs assessment but not ER-level emergency. Family doctor booked 3 weeks out.',
+  recommendation:'Urgent Primary Care Centre. Patient needs assessment within 24-48 hours.',
+  worriedMessage:"My doctor can't see me for 3 weeks and I'm scared this is getting worse. I don't know what to do.",
+  pills:{
+    initial:[
+      {id:'temperature',text:'Can you feel temperature changes in your feet?'},
+      {id:'wounds',text:'Any open sores or wounds on your feet?'},
+      {id:'activity',text:'How has your activity level been?'},
+    ],
+  },
+  responses:{
+    temperature:"Not really, they feel cold most of the time but I can't tell if they actually are.",
+    wounds:"No sores, but I noticed my toenails are getting discolored.",
+  },
+  aiInsight:"Diabetic neuropathy with loss of temperature sensation and nail changes. Not emergent but needs assessment within 24-48 hours to prevent complications. Current HbA1c 8.2 suggests suboptimal glucose control contributing to progression.",
+  initialRouting:{name:'Saanich Peninsula UPCC',wait:'~2 hours',lat:48.5894,lng:-123.4194},
+  initialRoutingMsg:"Robert, we've booked you in at Saanich Peninsula Urgent Care. Current wait is about 2 hours. We'll keep monitoring \u2014 if a faster option opens up, we'll let you know immediately.",
+  waitStatus:{
+    position:8,total:12,estimated:'~1 hr 45 min',level:'Level 3 (Urgent)',
+    reasons:['1 cardiac event (Level 1) admitted ahead of you','2 acute injuries (Level 2) being treated','You are next among Level 3 patients'],
+    explanation:'Patients with immediately life-threatening conditions are seen first. You are the next priority in your triage level.',
+  },
+  reroute:{
+    providerBanner:'System Alert: Westshore Urgent Care \u2014 3 cancellations detected. Wait time dropped from 1hr 40min to 15 minutes. 1 queued patient is eligible for reroute.',
+    phoneBanner:"Good news \u2014 Westshore Urgent Primary Care Centre just had cancellations. Their wait is now 15 minutes instead of your current 1 hr 45 min wait. It's a 20-minute drive from your location. Would you like to switch?",
+    facility:'Westshore UPCC',newWait:'15 minutes',driveTime:'20 minutes',
+    lat:48.4502,lng:-123.4952,
+    confirmMessage:"You're confirmed at Westshore. Drive time is about 20 minutes. They're expecting you. Leave in the next 10 minutes to arrive right on time.",
+  },
+};
+
+const FACILITIES = [
+  {id:'rj',name:'Royal Jubilee Hospital',type:'ER',lat:48.4356,lng:-123.3252,color:'#EF4444'},
+  {id:'vg',name:'Victoria General Hospital',type:'ER',lat:48.4634,lng:-123.3964,color:'#EF4444'},
+  {id:'cool',name:'Cool Aid Community Health',type:'CHC',lat:48.4284,lng:-123.3656,color:'#22C55E'},
+  {id:'saanich',name:'Saanich Peninsula UPCC',type:'UPCC',lat:48.5894,lng:-123.4194,color:'#EAB308'},
+  {id:'westshore',name:'Westshore UPCC',type:'UPCC',lat:48.4502,lng:-123.4952,color:'#EAB308'},
+  {id:'james',name:'James Bay Walk-In',type:'Clinic',lat:48.4089,lng:-123.3684,color:'#3B82F6'},
+];
+
+const CAPACITY = {
+  start:       {rj:92,vg:89,cool:35,saanich:65,westshore:22,james:28},
+  afterMaria:  {rj:87,vg:84,cool:48,saanich:65,westshore:22,james:28},
+  afterRobert: {rj:87,vg:84,cool:48,saanich:72,westshore:22,james:28},
+  afterReroute:{rj:87,vg:84,cool:48,saanich:68,westshore:31,james:28},
+};
+
+const BEFORE_AFTER = [
+  ['Patient calls 5 numbers, gets voicemail','One number. AI picks up immediately.'],
+  ['No idea where to go \u2014 defaults to ER','System finds the right place in seconds'],
+  ['Sits in ER for 4 hours, maybe leaves without being seen','Goes to the right facility, seen in under an hour'],
+  ['Provider gets cold-started, no context','Provider opens a complete file before saying a word'],
+  ['ER at 98% capacity \u2014 everyone waiting','ER at 84% \u2014 capacity freed for real emergencies'],
+  ["Clinics half-empty, patients don't know they exist",'Clinics filling up \u2014 the system routes patients to them'],
+  ['Patient waits in a void, no information','Patient sees their position, why they\'re waiting, gets rerouted when better opens up'],
+];
+
+// ==================== SCENES ====================
+const SCENES = [
+  {id:'1.1',type:'auto',screen:'phone-only',label:"Maria texts in"},
+  {id:'1.2',type:'auto',screen:'split',label:"AI Intake + Checklist"},
+  {id:'1.3',type:'auto',screen:'split',label:"Card appears on dashboard"},
+  {id:'1.4',type:'interactive',screen:'split',label:"Click Maria's card"},
+  {id:'1.5a',type:'interactive',screen:'split',label:'Click "Start Conversation"'},
+  {id:'1.5b',type:'interactive',screen:'split',label:'Click diet question'},
+  {id:'1.5c',type:'interactive',screen:'split',label:'Click bloating question'},
+  {id:'1.6a',type:'interactive',screen:'split',label:'Click "Route Patient"'},
+  {id:'1.6b',type:'interactive',screen:'split',label:'Click "Confirm Routing"'},
+  {id:'T',type:'auto',screen:'dashboard',label:"System Impact"},
+  {id:'2.1',type:'auto',screen:'split',label:"Robert's card appears"},
+  {id:'2.2a',type:'interactive',screen:'split',label:"Click Robert's card"},
+  {id:'2.2b',type:'interactive',screen:'split',label:'Click "Start Conversation"'},
+  {id:'2.2c',type:'interactive',screen:'split',label:'Click temperature question'},
+  {id:'2.2d',type:'interactive',screen:'split',label:'Click wounds question'},
+  {id:'2.2e',type:'interactive',screen:'split',label:'Click "Route Patient"'},
+  {id:'2.3',type:'auto',screen:'split',label:"Wait Status"},
+  {id:'2.4a',type:'auto',screen:'split',label:"Reroute notification"},
+  {id:'2.4b',type:'interactive',screen:'split',label:"Approve reroute"},
+  {id:'2.5',type:'auto',screen:'dashboard',label:"Dashboard rebalances"},
+  {id:'C',type:'auto',screen:'closing',label:"Before / After"},
+];
+
+let sceneIndex = -1;
+let animating = false;
+let currentMaps = [];
+
+// ==================== UTILITIES ====================
+const $ = s => document.querySelector(s);
+const $$ = s => document.querySelectorAll(s);
+
+function showScreen(id) {
+  $$('.screen').forEach(s => {s.classList.remove('active')});
+  const el = document.getElementById('screen-' + id);
+  // ensure display flex
+  el.style.display = 'flex';
+  // force reflow
+  el.offsetHeight;
+  el.classList.add('active');
+}
+
+function movePhone(targetId) {
+  const phone = $('#the-phone');
+  const target = document.getElementById(targetId);
+  if (phone.parentElement !== target) {
+    target.appendChild(phone);
+  }
+}
+
+function setSceneLabel(text) {
+  $('#scene-label').textContent = text;
+}
+
+function showContinue() {
+  $('#continue-btn').classList.add('visible');
+}
+function hideContinue() {
+  $('#continue-btn').classList.remove('visible');
+}
+
+function clearProvider() {
+  $('#split-provider').innerHTML = '';
+}
+
+// Typing: add message char by char
+function typeMessage(container, role, text, speed = 30) {
+  return new Promise(resolve => {
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble bubble-' + (role === 'patient' ? 'patient' : 'ai');
+    const label = document.createElement('div');
+    label.className = 'bubble-label';
+    label.textContent = role === 'patient' ? 'You' : 'CarePoint AI';
+    bubble.appendChild(label);
+    const span = document.createElement('span');
+    bubble.appendChild(span);
+    container.appendChild(bubble);
+    let i = 0;
+    const iv = setInterval(() => {
+      if (i < text.length) {
+        span.textContent += text[i];
+        i++;
+        container.scrollTop = container.scrollHeight;
+      } else {
+        clearInterval(iv);
+        container.scrollTop = container.scrollHeight;
+        resolve();
+      }
+    }, speed);
+  });
+}
+
+function showTyping() {
+  const t = $('#phone-typing');
+  t.style.display = 'flex';
+  $('#phone-messages').scrollTop = $('#phone-messages').scrollHeight;
+}
+function hideTyping() {
+  $('#phone-typing').style.display = 'none';
+}
+
+function wait(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+function randomDelay(min, max) { return wait(min + Math.random() * (max - min)); }
+
+async function playMessages(messages, container, onCheck) {
+  container = container || $('#phone-messages');
+  for (const msg of messages) {
+    if (msg.role === 'ai') {
+      showTyping();
+      await randomDelay(1000, 2000);
+      hideTyping();
+    } else {
+      await randomDelay(800, 1500);
+    }
+    await typeMessage(container, msg.role, msg.text);
+    if (onCheck && msg.check !== undefined && msg.check !== null) {
+      checkItem(msg.check);
+    }
+    await randomDelay(500, 1000);
+  }
+}
+
+function waitForClick(selector, callback) {
+  const el = typeof selector === 'string' ? $(selector) : selector;
+  if (!el) return;
+  el.classList.add('clickable');
+  const handler = () => {
+    el.classList.remove('clickable');
+    el.removeEventListener('click', handler);
+    callback();
+  };
+  el.addEventListener('click', handler);
+}
+
+function checkItem(index) {
+  const items = $$('#checklist-list li');
+  if (items[index]) {
+    items[index].classList.add('done');
+    items[index].querySelector('.check-icon').textContent = '\u2713';
+  }
+}
+
+function capColor(pct) {
+  if (pct >= 80) return 'var(--red)';
+  if (pct >= 50) return 'var(--amber)';
+  return 'var(--green)';
+}
+
+function setCapacityBars(state) {
+  FACILITIES.forEach(f => {
+    const fill = document.getElementById('cap-fill-' + f.id);
+    const pctEl = document.getElementById('cap-pct-' + f.id);
+    if (fill && pctEl) {
+      const v = state[f.id];
+      fill.style.width = v + '%';
+      fill.style.backgroundColor = capColor(v);
+      pctEl.textContent = v + '%';
+      pctEl.style.color = capColor(v);
+    }
+  });
+}
+
+function buildCapacityHTML() {
+  let html = '<div class="dash-title">System Capacity Overview</div><div class="cap-grid">';
+  FACILITIES.forEach(f => {
+    html += `<div class="cap-bar-wrap">
+      <div class="cap-bar-label">
+        <span class="cap-bar-name">${f.name}</span>
+        <span class="cap-bar-type">${f.type}</span>
+      </div>
+      <div class="cap-bar-label">
+        <span class="cap-bar-pct" id="cap-pct-${f.id}" style="color:${capColor(0)}">0%</span>
+      </div>
+      <div class="cap-bar-track"><div class="cap-bar-fill" id="cap-fill-${f.id}" style="width:0%"></div></div>
+    </div>`;
+  });
+  html += '</div>';
+  html += '<div class="counter-box"><div class="counter-label">ER Visits Prevented Today</div><div class="counter-val" id="counter-val">0</div></div>';
+  html += '<div class="whatif" id="whatif-area"></div>';
+  return html;
+}
+
+function animateCounter(target, duration = 3000) {
+  const el = $('#counter-val');
+  let current = parseInt(el.textContent) || 0;
+  if (current >= target) { el.textContent = target; return; }
+  const step = duration / (target - current);
+  const iv = setInterval(() => {
+    current++;
+    el.textContent = current;
+    el.style.animation = 'counter-pop .3s ease-out';
+    setTimeout(() => { el.style.animation = ''; }, 300);
+    if (current >= target) clearInterval(iv);
+  }, step);
+}
+
+function showWhatIf(erWithout, erWith) {
+  const area = $('#whatif-area');
+  if (!area) return;
+  area.innerHTML = `
+    <div class="whatif-card bad"><div class="whatif-title">Without CarePoint</div><div class="whatif-val">ER ${erWithout}%</div></div>
+    <div class="whatif-card good"><div class="whatif-title">With CarePoint</div><div class="whatif-val">ER ${erWith}%</div></div>
+  `;
+}
+
+function destroyMaps() {
+  currentMaps.forEach(m => { try { m.remove(); } catch(e) {} });
+  currentMaps = [];
+}
+
+// ==================== SCENE HANDLERS ====================
+
+const sceneHandlers = {
+  '1.1': async function() {
+    showScreen('phone-only');
+    movePhone('screen-phone-only');
+    hideContinue();
+    await playMessages(MARIA.intake1, $('#phone-messages'));
+    showContinue();
+  },
+
+  '1.2': async function() {
+    showScreen('split');
+    movePhone('split-phone');
+    hideContinue();
+
+    // Build checklist on provider side
+    let html = '<div class="glass" style="padding:20px"><h3 style="font-size:16px;font-weight:700;margin-bottom:16px;color:var(--accent)">AI Intake Verification</h3>';
+    html += '<ul class="checklist" id="checklist-list">';
+    MARIA.checklist.forEach(c => {
+      html += `<li><span class="check-icon"></span>${c}</li>`;
+    });
+    html += '</ul></div>';
+    $('#split-provider').innerHTML = html;
+
+    // Check items 0 and 1 immediately (Identity + Healthcare Status already given)
+    await wait(500);
+    checkItem(0);
+    await wait(400);
+    checkItem(1);
+    await wait(300);
+
+    // Play intake2 messages with checklist updates
+    await playMessages(MARIA.intake2, $('#phone-messages'), true);
+
+    // Check item 4 (Triage Ready) after all messages
+    await wait(500);
+    checkItem(4);
+    showContinue();
+  },
+
+  '1.3': async function() {
+    hideContinue();
+    // Swap provider panel to mini-dashboard with Maria's card
+    $('#split-provider').innerHTML = `
+      <div style="padding:4px">
+        <h3 style="font-size:14px;font-weight:600;color:var(--text-dim);margin-bottom:12px">Incoming Patients</h3>
+        <div class="patient-card" id="maria-card" style="animation:bounce-in .6s ease-out;border-left:3px solid ${MARIA.triageColor}">
+          <div class="pc-top">
+            <div class="pc-avatar" style="background:${MARIA.triageColor}">${MARIA.initials}</div>
+            <div class="pc-info">
+              <div class="pc-name">${MARIA.name}</div>
+              <div class="pc-meta">${MARIA.age}${MARIA.sex} &bull; ${MARIA.location}</div>
+            </div>
+          </div>
+          <div class="pc-complaint">${MARIA.complaint}</div>
+          <div class="pc-triage">
+            <div class="pc-score" style="color:${MARIA.triageColor}">${MARIA.triageScore}</div>
+            <div class="pc-level" style="background:${MARIA.triageColor}">${MARIA.triageLevelText}</div>
+            <div class="pc-confidence">${MARIA.confidence}% confidence</div>
+          </div>
+          <div class="pc-status">Intake Complete &mdash; Awaiting Provider Review</div>
+        </div>
+      </div>`;
+    // Green pulse glow
+    const card = $('#maria-card');
+    card.style.animation = 'bounce-in .6s ease-out, pulse-glow 2s ease-in-out infinite .6s';
+    await wait(2000);
+    showContinue();
+  },
+
+  '1.4': async function() {
+    hideContinue();
+    // Highlight Maria's card
+    waitForClick('#maria-card', () => {
+      // Show patient file
+      $('#split-provider').innerHTML = buildPatientFile(MARIA);
+      enterScene('1.5a');
+    });
+  },
+
+  '1.5a': async function() {
+    // Highlight Start Conversation button
+    waitForClick('#btn-start-conv', () => {
+      showConversationView(MARIA);
+      enterScene('1.5b');
+    });
+  },
+
+  '1.5b': async function() {
+    // Highlight diet pill
+    waitForClick('#pill-diet', async () => {
+      removePills();
+      // Add provider question
+      addProvMsg('provider', 'Have you changed your diet since moving to Canada?');
+      await wait(300);
+      // Show typing on phone, then patient response
+      showTyping();
+      await wait(1500);
+      hideTyping();
+      await typeMessage($('#phone-messages'), 'patient', MARIA.responses.diet);
+      addProvMsg('patient', MARIA.responses.diet);
+      await wait(300);
+      // Show new pills
+      showPills(MARIA.pills.afterDiet);
+      enterScene('1.5c');
+    });
+  },
+
+  '1.5c': async function() {
+    waitForClick('#pill-bloating', async () => {
+      removePills();
+      addProvMsg('provider', 'Any bloating or gas?');
+      await wait(300);
+      showTyping();
+      await wait(1500);
+      hideTyping();
+      await typeMessage($('#phone-messages'), 'patient', MARIA.responses.bloating);
+      addProvMsg('patient', MARIA.responses.bloating);
+      await wait(500);
+      // Show AI insight
+      const conv = $('#prov-conv-area');
+      const insight = document.createElement('div');
+      insight.className = 'ai-insight';
+      insight.innerHTML = `<h4>AI Pattern Detection</h4><p>${MARIA.aiInsight}</p>`;
+      conv.appendChild(insight);
+      conv.scrollTop = conv.scrollHeight;
+      await wait(400);
+      // Show Route Patient button
+      const btn = document.createElement('button');
+      btn.className = 'action-btn green';
+      btn.id = 'btn-route';
+      btn.textContent = 'Route Patient';
+      conv.appendChild(btn);
+      conv.scrollTop = conv.scrollHeight;
+      enterScene('1.6a');
+    });
+  },
+
+  '1.6a': async function() {
+    waitForClick('#btn-route', () => {
+      showRoutingView(MARIA);
+      enterScene('1.6b');
+    });
+  },
+
+  '1.6b': async function() {
+    waitForClick('#btn-confirm-route', async () => {
+      $('#btn-confirm-route').classList.remove('clickable');
+      $('#btn-confirm-route').textContent = 'Confirmed';
+      $('#btn-confirm-route').style.opacity = '.5';
+      $('#btn-confirm-route').style.cursor = 'default';
+      // Send routing message to phone
+      await typeMessage($('#phone-messages'), 'ai', MARIA.routingMessage);
+      await wait(300);
+      // Add facility card on phone
+      const fc = document.createElement('div');
+      fc.className = 'bubble-facility';
+      fc.innerHTML = `<div class="fac-name">${MARIA.routing.recommended.name}</div><div class="fac-addr">${MARIA.routing.recommended.address}</div><div class="fac-note">They're expecting you</div>`;
+      $('#phone-messages').appendChild(fc);
+      $('#phone-messages').scrollTop = $('#phone-messages').scrollHeight;
+      await wait(1000);
+      showContinue();
+    });
+  },
+
+  'T': async function() {
+    destroyMaps();
+    showScreen('dashboard');
+    hideContinue();
+    $('#screen-dashboard').innerHTML = buildCapacityHTML();
+    // Set to start values
+    await wait(100);
+    setCapacityBars(CAPACITY.start);
+    await wait(500);
+    // Animate to afterMaria
+    setCapacityBars(CAPACITY.afterMaria);
+    await wait(1000);
+    animateCounter(3, 3000);
+    await wait(2500);
+    showWhatIf(98, 84);
+    await wait(2000);
+    showContinue();
+  },
+
+  '2.1': async function() {
+    destroyMaps();
+    showScreen('split');
+    movePhone('split-phone');
+    hideContinue();
+    // Clear phone messages for Robert
+    $('#phone-messages').innerHTML = '';
+    await wait(300);
+    // Robert's worried message on phone
+    await typeMessage($('#phone-messages'), 'patient', ROBERT.worriedMessage);
+    await wait(500);
+    // Show AI acknowledgment
+    showTyping();
+    await wait(1500);
+    hideTyping();
+    await typeMessage($('#phone-messages'), 'ai', "I understand how concerning that must be, Robert. Let me help you find care sooner. I have your medical history on file \u2014 I see you have Type 2 Diabetes and Hypertension. Let me connect you with a provider who can assess this quickly.");
+    // Provider side: Robert's card
+    $('#split-provider').innerHTML = `
+      <div style="padding:4px">
+        <h3 style="font-size:14px;font-weight:600;color:var(--text-dim);margin-bottom:12px">Incoming Patients</h3>
+        <div class="patient-card" id="robert-card" style="animation:bounce-in .6s ease-out;border-left:3px solid ${ROBERT.triageColor}">
+          <div class="pc-top">
+            <div class="pc-avatar" style="background:${ROBERT.triageColor}">${ROBERT.initials}</div>
+            <div class="pc-info">
+              <div class="pc-name">${ROBERT.name}</div>
+              <div class="pc-meta">${ROBERT.age}${ROBERT.sex} &bull; HC: ${ROBERT.healthCard}</div>
+            </div>
+          </div>
+          <div class="pc-complaint">${ROBERT.complaint}</div>
+          <div class="pc-triage">
+            <div class="pc-score" style="color:${ROBERT.triageColor}">${ROBERT.triageScore}</div>
+            <div class="pc-level" style="background:${ROBERT.triageColor}">${ROBERT.triageLevelText}</div>
+            <div class="pc-confidence">${ROBERT.confidence}% confidence</div>
+          </div>
+          <div class="pc-status">Intake Complete &mdash; Awaiting Provider Review</div>
+        </div>
+      </div>`;
+    const card = $('#robert-card');
+    card.style.animation = 'bounce-in .6s ease-out, pulse-glow-amber 2s ease-in-out infinite .6s';
+    await wait(2000);
+    showContinue();
+  },
+
+  '2.2a': async function() {
+    hideContinue();
+    waitForClick('#robert-card', () => {
+      $('#split-provider').innerHTML = buildPatientFile(ROBERT);
+      enterScene('2.2b');
+    });
+  },
+
+  '2.2b': async function() {
+    waitForClick('#btn-start-conv', () => {
+      showConversationView(ROBERT);
+      enterScene('2.2c');
+    });
+  },
+
+  '2.2c': async function() {
+    waitForClick('#pill-temperature', async () => {
+      removePills();
+      addProvMsg('provider', 'Can you feel temperature changes in your feet?');
+      await wait(300);
+      showTyping();
+      await wait(1500);
+      hideTyping();
+      await typeMessage($('#phone-messages'), 'patient', ROBERT.responses.temperature);
+      addProvMsg('patient', ROBERT.responses.temperature);
+      await wait(300);
+      // Re-show remaining pills (wounds + activity)
+      showPills([ROBERT.pills.initial[1], ROBERT.pills.initial[2]]);
+      enterScene('2.2d');
+    });
+  },
+
+  '2.2d': async function() {
+    waitForClick('#pill-wounds', async () => {
+      removePills();
+      addProvMsg('provider', 'Any open sores or wounds on your feet?');
+      await wait(300);
+      showTyping();
+      await wait(1500);
+      hideTyping();
+      await typeMessage($('#phone-messages'), 'patient', ROBERT.responses.wounds);
+      addProvMsg('patient', ROBERT.responses.wounds);
+      await wait(500);
+      // AI Insight
+      const conv = $('#prov-conv-area');
+      const insight = document.createElement('div');
+      insight.className = 'ai-insight';
+      insight.innerHTML = `<h4>AI Clinical Insight</h4><p>${ROBERT.aiInsight}</p>`;
+      conv.appendChild(insight);
+      conv.scrollTop = conv.scrollHeight;
+      await wait(400);
+      const btn = document.createElement('button');
+      btn.className = 'action-btn green';
+      btn.id = 'btn-route';
+      btn.textContent = 'Route Patient';
+      conv.appendChild(btn);
+      conv.scrollTop = conv.scrollHeight;
+      enterScene('2.2e');
+    });
+  },
+
+  '2.2e': async function() {
+    waitForClick('#btn-route', async () => {
+      $('#btn-route').classList.remove('clickable');
+      // Show simple routing on provider side
+      const prov = $('#split-provider');
+      prov.innerHTML = `
+        <div class="glass" style="padding:20px">
+          <h3 style="font-size:16px;font-weight:700;margin-bottom:16px;color:var(--accent)">Routing: ${ROBERT.name}</h3>
+          <div class="route-card recommended" style="margin-bottom:12px">
+            <span class="rc-badge">Recommended</span>
+            <h4>${ROBERT.initialRouting.name}</h4>
+            <div class="rc-detail">Wait: ${ROBERT.initialRouting.wait}</div>
+            <div class="rc-detail">Triage: ${ROBERT.triageLevelText}</div>
+          </div>
+          <div class="map-container"><div id="routing-map-2"></div></div>
+        </div>`;
+      await wait(200);
+      try {
+        const m2 = L.map('routing-map-2',{zoomControl:false}).setView([ROBERT.initialRouting.lat, ROBERT.initialRouting.lng], 12);
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png').addTo(m2);
+        L.circleMarker([ROBERT.initialRouting.lat, ROBERT.initialRouting.lng],{radius:8,color:'#F97316',fillColor:'#F97316',fillOpacity:.8}).addTo(m2);
+        currentMaps.push(m2);
+        setTimeout(() => m2.invalidateSize(), 200);
+      } catch(e) {}
+      // Send routing message to phone
+      await typeMessage($('#phone-messages'), 'ai', ROBERT.initialRoutingMsg);
+      await wait(1000);
+      showContinue();
+    });
+  },
+
+  '2.3': async function() {
+    hideContinue();
+    destroyMaps();
+    // Phone: show wait status
+    const ws = ROBERT.waitStatus;
+    const wc = document.createElement('div');
+    wc.className = 'wait-card';
+    wc.innerHTML = `
+      <h4>Your Wait Status</h4>
+      <div class="wait-row"><span class="wait-label">Position</span><span class="wait-val">${ws.position} of ${ws.total}</span></div>
+      <div class="wait-row"><span class="wait-label">Estimated Wait</span><span class="wait-val">${ws.estimated}</span></div>
+      <div class="wait-row"><span class="wait-label">Triage Level</span><span class="wait-val">${ws.level}</span></div>
+      <div class="wait-reasons"><ul>${ws.reasons.map(r=>'<li>'+r+'</li>').join('')}</ul></div>
+      <div class="wait-explain">${ws.explanation}</div>`;
+    $('#phone-messages').appendChild(wc);
+    $('#phone-messages').scrollTop = $('#phone-messages').scrollHeight;
+    // Provider side: show queue view
+    $('#split-provider').innerHTML = `
+      <div class="glass" style="padding:20px">
+        <h3 style="font-size:16px;font-weight:700;margin-bottom:12px;color:var(--accent)">Queue Monitor</h3>
+        <div class="patient-card" style="border-left:3px solid ${ROBERT.triageColor};margin-bottom:12px">
+          <div class="pc-top">
+            <div class="pc-avatar" style="background:${ROBERT.triageColor}">${ROBERT.initials}</div>
+            <div class="pc-info"><div class="pc-name">${ROBERT.name}</div><div class="pc-meta">Position 8/12 &bull; Est. ~1hr 45min</div></div>
+          </div>
+          <div class="pc-status">Queued at Saanich Peninsula UPCC</div>
+        </div>
+      </div>`;
+    await wait(3000);
+    showContinue();
+  },
+
+  '2.4a': async function() {
+    hideContinue();
+    // Provider banner
+    const prov = $('#split-provider');
+    const banner = document.createElement('div');
+    banner.className = 'reroute-banner';
+    banner.innerHTML = `<div class="rb-icon">&#9889;</div><div class="rb-text">${ROBERT.reroute.providerBanner}</div><div class="rb-action"><button class="action-btn" id="btn-approve-reroute" style="width:auto;margin:0;padding:8px 16px;font-size:12px">Approve Reroute</button></div>`;
+    prov.insertBefore(banner, prov.firstChild);
+
+    // Phone notification
+    const rc = document.createElement('div');
+    rc.className = 'reroute-phone-card';
+    rc.id = 'phone-reroute-card';
+    rc.innerHTML = `<p>${ROBERT.reroute.phoneBanner}</p><div class="reroute-phone-btns"><button class="reroute-accept" id="phone-accept-btn">Accept</button><button class="reroute-stay">Stay</button></div>`;
+    $('#phone-messages').appendChild(rc);
+    $('#phone-messages').scrollTop = $('#phone-messages').scrollHeight;
+    await wait(1000);
+    showContinue();
+  },
+
+  '2.4b': async function() {
+    hideContinue();
+    waitForClick('#btn-approve-reroute', async () => {
+      $('#btn-approve-reroute').textContent = 'Approved';
+      $('#btn-approve-reroute').style.opacity = '.5';
+      $('#btn-approve-reroute').style.cursor = 'default';
+      // Phone auto-accepts
+      const phoneBtn = $('#phone-accept-btn');
+      if (phoneBtn) {
+        phoneBtn.style.background = 'var(--green)';
+        phoneBtn.textContent = 'Accepted!';
+      }
+      await wait(500);
+      // Send confirmation to phone
+      await typeMessage($('#phone-messages'), 'ai', ROBERT.reroute.confirmMessage);
+      await wait(300);
+      // Facility card
+      const fc = document.createElement('div');
+      fc.className = 'bubble-facility';
+      fc.innerHTML = `<div class="fac-name">${ROBERT.reroute.facility}</div><div class="fac-addr">Wait: ${ROBERT.reroute.newWait} &bull; Drive: ${ROBERT.reroute.driveTime}</div><div class="fac-note">They're expecting you. Leave in 10 minutes.</div>`;
+      $('#phone-messages').appendChild(fc);
+      $('#phone-messages').scrollTop = $('#phone-messages').scrollHeight;
+      await wait(1500);
+      showContinue();
+    });
+  },
+
+  '2.5': async function() {
+    destroyMaps();
+    showScreen('dashboard');
+    hideContinue();
+    $('#screen-dashboard').innerHTML = buildCapacityHTML();
+    await wait(100);
+    setCapacityBars(CAPACITY.afterRobert);
+    await wait(500);
+    setCapacityBars(CAPACITY.afterReroute);
+    await wait(1000);
+    animateCounter(4, 2000);
+    await wait(2000);
+    showWhatIf(98, 84);
+    await wait(2000);
+    showContinue();
+  },
+
+  'C': async function() {
+    destroyMaps();
+    showScreen('closing');
+    hideContinue();
+    let html = '<div class="dash-title" style="margin-bottom:24px">The CarePoint Difference</div>';
+    html += '<table class="closing-table"><thead><tr><th>Before CarePoint</th><th>After CarePoint</th></tr></thead><tbody id="closing-tbody">';
+    BEFORE_AFTER.forEach((row, i) => {
+      html += `<tr class="closing-row" style="opacity:0;animation:row-slide .4s ease-out ${i*0.15}s forwards"><td>${row[0]}</td><td>${row[1]}</td></tr>`;
+    });
+    html += '</tbody></table>';
+    html += '<div class="closing-final" id="closing-final">Two patients. Two problems solved. The patient feels responded to. The provider goes in informed. The system balances itself. That\'s CarePoint.</div>';
+    $('#screen-closing').innerHTML = html;
+    // Reveal final text after all rows
+    await wait(BEFORE_AFTER.length * 150 + 1500);
+    const fin = $('#closing-final');
+    if (fin) fin.classList.add('visible');
+  },
+};
+
+// ==================== HELPERS FOR PROVIDER VIEWS ====================
+
+function buildPatientFile(patient) {
+  const isRobert = patient === ROBERT;
+  let html = '<div style="display:flex;flex-direction:column;gap:12px">';
+  // Header
+  html += `<div class="glass" style="padding:16px;display:flex;align-items:center;gap:14px">
+    <div class="pc-avatar" style="background:${patient.triageColor};width:50px;height:50px;font-size:18px">${patient.initials}</div>
+    <div style="flex:1">
+      <div style="font-size:18px;font-weight:700">${patient.name}</div>
+      <div style="font-size:13px;color:var(--text-dim)">${patient.age}${patient.sex} &bull; DOB: ${patient.dob}</div>
+    </div>
+    <div class="pc-level" style="background:${patient.triageColor};font-size:13px;padding:4px 12px">${patient.triageLevelText}</div>
+  </div>`;
+  // Demographics
+  html += `<div class="pf-section"><h4>Demographics</h4><div class="pf-grid">
+    <div class="pf-item"><div class="pf-label">Health Card</div><div class="pf-val">${patient.healthCard}</div></div>
+    <div class="pf-item"><div class="pf-label">Language</div><div class="pf-val">${patient.language || 'English'}</div></div>
+  </div></div>`;
+  // Medical
+  html += `<div class="pf-section"><h4>Medical History</h4>
+    <div class="pf-grid">
+      <div class="pf-item"><div class="pf-label">Conditions</div><ul class="pf-list">${patient.conditions.map(c=>'<li>'+c+'</li>').join('')}</ul></div>
+      <div class="pf-item"><div class="pf-label">Medications</div><ul class="pf-list">${patient.meds.map(m=>'<li>'+m+'</li>').join('')}</ul></div>
+    </div>
+    <div style="margin-top:6px"><div class="pf-label">Allergies</div><div class="pf-val" style="color:var(--red)">${patient.allergies.join(', ')}</div></div>
+    ${isRobert ? '<div style="margin-top:6px"><div class="pf-label">Labs</div><div class="pf-val">'+patient.labs+'</div></div>' : ''}
+  </div>`;
+  // Complaint
+  html += `<div class="pf-section"><h4>Chief Complaint</h4><p style="font-size:13px;line-height:1.5">${patient.complaint}</p></div>`;
+  // AI Assessment
+  html += `<div class="ai-card"><h4>AI Assessment</h4><p>${patient.aiAssessment}</p></div>`;
+  // Triage
+  html += `<div class="pf-section" style="display:flex;align-items:center;gap:16px">
+    <div><div class="pf-label">Triage Score</div><div style="font-size:32px;font-weight:800;color:${patient.triageColor}">${patient.triageScore}</div></div>
+    <div style="flex:1"><div class="pf-label">Recommendation</div><p style="font-size:12px;line-height:1.4;color:var(--text)">${patient.recommendation}</p></div>
+  </div>`;
+  // Start Conversation button
+  html += `<button class="action-btn" id="btn-start-conv">Start Conversation</button>`;
+  html += '</div>';
+  return html;
+}
+
+function showConversationView(patient) {
+  const isRobert = patient === ROBERT;
+  let html = '<div style="display:flex;flex-direction:column;gap:12px">';
+  html += `<div class="glass" style="padding:14px;display:flex;align-items:center;gap:10px">
+    <div class="pc-avatar" style="background:${patient.triageColor};width:36px;height:36px;font-size:13px">${patient.initials}</div>
+    <div style="flex:1"><div style="font-size:15px;font-weight:600">${patient.name}</div><div style="font-size:11px;color:var(--text-dim)">Live Conversation</div></div>
+  </div>`;
+  // Existing transcript (greyed out)
+  html += '<div class="conv-transcript">';
+  const msgs = isRobert ? [{role:'patient',text:ROBERT.worriedMessage}] : [...MARIA.intake1, ...MARIA.intake2];
+  msgs.forEach(m => {
+    html += `<div class="conv-msg"><strong>${m.role==='patient'?patient.name:'AI'}:</strong> ${m.text}</div>`;
+  });
+  html += '</div>';
+  // Conversation area
+  html += '<div id="prov-conv-area" style="display:flex;flex-direction:column;gap:8px;max-height:400px;overflow-y:auto"></div>';
+  // Suggested questions
+  html += '<div class="pills" id="pills-area">';
+  const pills = isRobert ? patient.pills.initial : patient.pills.initial;
+  pills.forEach(p => {
+    html += `<div class="pill" id="pill-${p.id}">${p.text}</div>`;
+  });
+  html += '</div>';
+  html += '</div>';
+  $('#split-provider').innerHTML = html;
+}
+
+function addProvMsg(role, text) {
+  const conv = $('#prov-conv-area');
+  if (!conv) return;
+  const div = document.createElement('div');
+  div.className = 'prov-msg prov-msg-' + role;
+  div.innerHTML = `<div class="pm-label">${role==='provider'?'Provider':'Patient'}</div>${text}`;
+  conv.appendChild(div);
+  conv.scrollTop = conv.scrollHeight;
+}
+
+function removePills() {
+  const area = $('#pills-area');
+  if (area) area.innerHTML = '';
+}
+
+function showPills(pills) {
+  const area = $('#pills-area');
+  if (!area) return;
+  area.innerHTML = '';
+  pills.forEach(p => {
+    const d = document.createElement('div');
+    d.className = 'pill';
+    d.id = 'pill-' + p.id;
+    d.textContent = p.text;
+    area.appendChild(d);
+  });
+}
+
+function showRoutingView(patient) {
+  destroyMaps();
+  let html = '<div style="display:flex;flex-direction:column;gap:12px">';
+  html += `<div class="glass" style="padding:16px">
+    <h3 style="font-size:16px;font-weight:700;margin-bottom:14px;color:var(--accent)">Routing: ${patient.name}</h3>
+    <div class="route-card recommended" style="margin-bottom:12px">
+      <span class="rc-badge">Recommended</span>
+      <h4>${patient.routing.recommended.name}</h4>
+      <div class="rc-detail">Wait: ${patient.routing.recommended.wait}</div>
+      <div class="rc-detail">Services: ${patient.routing.recommended.services}</div>
+      <div class="rc-detail">Distance: ${patient.routing.recommended.distance}</div>
+      <div class="rc-detail">Address: ${patient.routing.recommended.address}</div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
+      <div class="route-alt"><h5>${patient.routing.alt1.name}</h5><p>Wait: ${patient.routing.alt1.wait}</p><p>${patient.routing.alt1.note}</p></div>
+      <div class="route-alt"><h5>${patient.routing.alt2.name}</h5><p>Wait: ${patient.routing.alt2.wait}</p><p>${patient.routing.alt2.note}</p></div>
+    </div>
+    <div class="map-container"><div id="routing-map"></div></div>
+  </div>`;
+  html += '<button class="action-btn green" id="btn-confirm-route">Confirm Routing</button>';
+  html += '</div>';
+  $('#split-provider').innerHTML = html;
+  // Init map
+  setTimeout(() => {
+    try {
+      const m = L.map('routing-map',{zoomControl:false}).setView([patient.routing.recommended.lat, patient.routing.recommended.lng], 13);
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png').addTo(m);
+      // Add markers for all facilities
+      FACILITIES.forEach(f => {
+        L.circleMarker([f.lat, f.lng], {radius:6, color:f.color, fillColor:f.color, fillOpacity:.7}).bindTooltip(f.name, {permanent:false}).addTo(m);
+      });
+      // Highlight recommended
+      L.circleMarker([patient.routing.recommended.lat, patient.routing.recommended.lng], {radius:12, color:'#22C55E', fillColor:'#22C55E', fillOpacity:.3, weight:2}).addTo(m);
+      currentMaps.push(m);
+      setTimeout(() => m.invalidateSize(), 200);
+    } catch(e) { console.warn('Map error', e); }
+  }, 100);
+}
+
+// ==================== SCENE ENGINE ====================
+
+function enterScene(id) {
+  // Find scene by id
+  const idx = SCENES.findIndex(s => s.id === id);
+  if (idx >= 0) {
+    sceneIndex = idx;
+    runScene();
+  }
+}
+
+function runScene() {
+  const scene = SCENES[sceneIndex];
+  if (!scene) return;
+  setSceneLabel(scene.label);
+
+  // Show/hide continue button based on type
+  if (scene.type === 'interactive') {
+    hideContinue();
+  }
+
+  // Run handler
+  const handler = sceneHandlers[scene.id];
+  if (handler) handler();
+}
+
+function advance() {
+  if (sceneIndex >= SCENES.length - 1) return;
+  sceneIndex++;
+  hideContinue();
+  runScene();
+}
+
+// Keyboard: right arrow
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowRight') {
+    const btn = $('#continue-btn');
+    if (btn && btn.classList.contains('visible')) {
+      advance();
+    }
+  }
+});
+
+function beginDemo() {
+  const launch = $('#launch-screen');
+  launch.classList.add('hidden');
+  setTimeout(() => { launch.style.display = 'none'; }, 600);
+  $('#demo-header').classList.add('visible');
+  sceneIndex = 0;
+  runScene();
+}
+</script>
+</body>
+</html>
