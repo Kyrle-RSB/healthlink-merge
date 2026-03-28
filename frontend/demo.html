@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CarePoint — Guided Investor Demo</title>
+<title>SILA — Guided Investor Demo</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -277,7 +277,7 @@ html,body{height:100%;overflow:hidden;font-family:'Inter',system-ui,sans-serif;b
   <div class="launch-orb launch-orb-2"></div>
   <div class="launch-orb launch-orb-3"></div>
   <div class="launch-logo"><div class="launch-logo-inner">CP</div></div>
-  <div class="launch-title">CarePoint</div>
+  <div class="launch-title">SILA</div>
   <div class="launch-subtitle">AI Healthcare Navigation for British Columbia</div>
   <button class="start-btn" onclick="beginDemo()">Start Demo</button>
 </div>
@@ -286,7 +286,7 @@ html,body{height:100%;overflow:hidden;font-family:'Inter',system-ui,sans-serif;b
 <div id="demo-header">
   <div class="hdr-left">
     <div class="hdr-logo">CP</div>
-    <span class="hdr-brand">CarePoint</span>
+    <span class="hdr-brand">SILA</span>
     <span class="hdr-scene" id="scene-label">--</span>
   </div>
   <div class="hdr-right">
@@ -313,7 +313,7 @@ html,body{height:100%;overflow:hidden;font-family:'Inter',system-ui,sans-serif;b
 <div id="the-phone">
   <div class="phone-frame">
     <div class="phone-notch"></div>
-    <div class="phone-status-bar">CarePoint AI</div>
+    <div class="phone-status-bar">SILA AI</div>
     <div id="phone-messages"></div>
     <div id="phone-typing"><span></span><span></span><span></span></div>
     <div class="phone-home"></div>
@@ -510,7 +510,7 @@ function typeMessage(container, role, text, speed = 30) {
     bubble.className = 'bubble bubble-' + (role === 'patient' ? 'patient' : 'ai');
     const label = document.createElement('div');
     label.className = 'bubble-label';
-    label.textContent = role === 'patient' ? 'You' : 'CarePoint AI';
+    label.textContent = role === 'patient' ? 'You' : 'SILA AI';
     bubble.appendChild(label);
     const span = document.createElement('span');
     bubble.appendChild(span);
@@ -639,8 +639,8 @@ function showWhatIf(erWithout, erWith) {
   const area = $('#whatif-area');
   if (!area) return;
   area.innerHTML = `
-    <div class="whatif-card bad"><div class="whatif-title">Without CarePoint</div><div class="whatif-val">ER ${erWithout}%</div></div>
-    <div class="whatif-card good"><div class="whatif-title">With CarePoint</div><div class="whatif-val">ER ${erWith}%</div></div>
+    <div class="whatif-card bad"><div class="whatif-title">Without SILA</div><div class="whatif-val">ER ${erWithout}%</div></div>
+    <div class="whatif-card good"><div class="whatif-title">With SILA</div><div class="whatif-val">ER ${erWith}%</div></div>
   `;
 }
 
@@ -879,6 +879,14 @@ const sceneHandlers = {
 
   '2.2a': async function() {
     hideContinue();
+    // Ensure card exists and is clickable — clear any conflicting inline animation
+    const card = $('#robert-card');
+    if (card) {
+      card.style.animation = '';
+      card.style.cursor = 'pointer';
+    }
+    // Small delay to ensure DOM is settled
+    await wait(100);
     waitForClick('#robert-card', () => {
       $('#split-provider').innerHTML = buildPatientFile(ROBERT);
       enterScene('2.2b');
@@ -1069,13 +1077,13 @@ const sceneHandlers = {
     destroyMaps();
     showScreen('closing');
     hideContinue();
-    let html = '<div class="dash-title" style="margin-bottom:24px">The CarePoint Difference</div>';
-    html += '<table class="closing-table"><thead><tr><th>Before CarePoint</th><th>After CarePoint</th></tr></thead><tbody id="closing-tbody">';
+    let html = '<div class="dash-title" style="margin-bottom:24px">The SILA Difference</div>';
+    html += '<table class="closing-table"><thead><tr><th>Before SILA</th><th>After SILA</th></tr></thead><tbody id="closing-tbody">';
     BEFORE_AFTER.forEach((row, i) => {
       html += `<tr class="closing-row" style="opacity:0;animation:row-slide .4s ease-out ${i*0.15}s forwards"><td>${row[0]}</td><td>${row[1]}</td></tr>`;
     });
     html += '</tbody></table>';
-    html += '<div class="closing-final" id="closing-final">Two patients. Two problems solved. The patient feels responded to. The provider goes in informed. The system balances itself. That\'s CarePoint.</div>';
+    html += '<div class="closing-final" id="closing-final">Two patients. Two problems solved. The patient feels responded to. The provider goes in informed. The system balances itself. That\'s SILA.</div>';
     $('#screen-closing').innerHTML = html;
     // Reveal final text after all rows
     await wait(BEFORE_AFTER.length * 150 + 1500);
